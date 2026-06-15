@@ -11,38 +11,6 @@
 import { $, echo, fs, chalk } from 'zx';
 import path from 'path';
 import os from 'node:os';
-import { appendFileSync } from 'node:fs';
-
-const DEBUG_LOG_PATH = path.join(
-	path.dirname(new URL(import.meta.url).pathname),
-	'..',
-	'.cursor',
-	'debug-20dfbe.log',
-);
-
-function debugLog(hypothesisId, location, message, data = {}) {
-	// #region agent log
-	const entry = JSON.stringify({
-		sessionId: '20dfbe',
-		runId: process.env.DEBUG_RUN_ID ?? 'pre-fix',
-		hypothesisId,
-		location,
-		message,
-		data,
-		timestamp: Date.now(),
-	});
-	try {
-		appendFileSync(DEBUG_LOG_PATH, `${entry}\n`);
-	} catch {
-		// ignore logging failures during build
-	}
-	fetch('http://127.0.0.1:7814/ingest/8bdee7ba-3c40-46ea-b0fd-825b1bef1b9c', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '20dfbe' },
-		body: entry,
-	}).catch(() => {});
-	// #endregion
-}
 
 function getBuildResources() {
 	const totalMemMb = Math.floor(os.totalmem() / 1024 / 1024);
@@ -184,10 +152,6 @@ startTimer('package_build');
 
 echo(chalk.yellow('INFO: Running pnpm install and build...'));
 const buildResources = getBuildResources();
-debugLog('A', 'build-n8n.mjs:build-start', 'build resources computed', {
-	...buildResources,
-	existingNodeOptions: process.env.NODE_OPTIONS ?? null,
-});
 echo(
 	chalk.gray(
 		`INFO: Build limits — heap=${buildResources.heapMb}MB, turbo concurrency=${buildResources.concurrency}, system RAM=${buildResources.totalMemMb}MB`,
@@ -199,26 +163,15 @@ try {
 	await installProcess;
 
 	const buildEnv = getBuildEnv();
-	debugLog('B', 'build-n8n.mjs:turbo-start', 'starting turbo build', {
-		nodeOptions: buildEnv.NODE_OPTIONS,
-		concurrency: buildResources.concurrency,
-	});
 	const buildProcess =
 		$({
 			env: buildEnv,
 		})`cd ${config.rootDir} && pnpm exec turbo run build --summarize --concurrency=${buildResources.concurrency}`;
 	buildProcess.pipe(process.stdout);
 	await buildProcess;
-	debugLog('C', 'build-n8n.mjs:turbo-done', 'turbo build completed', {
-		concurrency: buildResources.concurrency,
-	});
 
 	echo(chalk.green('✅ pnpm install and build completed'));
 } catch (error) {
-	debugLog('D', 'build-n8n.mjs:build-failed', 'build failed', {
-		error: error instanceof Error ? error.message : String(error),
-		...buildResources,
-	});
 	console.error(chalk.red('\n🛑 BUILD PROCESS FAILED!'));
 	console.error(chalk.red('An error occurred during the build process:'));
 	process.exit(1);

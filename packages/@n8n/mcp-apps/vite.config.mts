@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => {
 		},
 		build: {
 			assetsInlineLimit: Number.MAX_SAFE_INTEGER,
+			cssMinify: 'esbuild',
 			emptyOutDir: true,
 			outDir: resolve(__dirname, 'dist/apps'),
 			rollupOptions: {

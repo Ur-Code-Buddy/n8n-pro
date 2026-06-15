@@ -54,6 +54,7 @@ export default defineConfig({
 	},
 	build: {
 		sourcemap: true,
+		cssMinify: 'esbuild',
 		rollupOptions: {
 			input: {
 				connect: resolve(__dirname, 'src/ui/connect.html'),
