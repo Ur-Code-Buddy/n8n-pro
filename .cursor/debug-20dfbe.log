@@ -1,0 +1,3 @@
+{"sessionId":"20dfbe","runId":"post-fix","hypothesisId":"E","location":"sim:pi","message":"simulated build resources","data":{"totalMemMb":4096,"heapMb":3072,"concurrency":1},"timestamp":1781496202090}
+{"sessionId":"20dfbe","runId":"post-fix","hypothesisId":"E","location":"sim:pi","message":"simulated build resources","data":{"totalMemMb":8192,"heapMb":4096,"concurrency":1},"timestamp":1781496202091}
+{"sessionId":"20dfbe","runId":"post-fix","hypothesisId":"E","location":"sim:pi","message":"simulated build resources","data":{"totalMemMb":16384,"heapMb":6144,"concurrency":2},"timestamp":1781496202091}
