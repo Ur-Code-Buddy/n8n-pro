@@ -160,6 +160,22 @@ describe('PUT /workflows/:workflowId/share', () => {
 		);
 	});
 
+	test('should save sharing with shares payload and role', async () => {
+		const workflow = await createWorkflow({}, owner);
+
+		const response = await authOwnerAgent.put(`/workflows/${workflow.id}/share`).send({
+			shares: [{ projectId: memberPersonalProject.id, role: 'workflow:editor' }],
+		});
+
+		expect(response.statusCode).toBe(200);
+
+		const sharedWorkflows = await getWorkflowSharing(workflow);
+		expect(sharedWorkflows).toHaveLength(2);
+		expect(
+			sharedWorkflows.find((sw) => sw.projectId === memberPersonalProject.id)?.role,
+		).toBe('workflow:editor');
+	});
+
 	test('should succeed when sharing with invalid user-id', async () => {
 		const workflow = await createWorkflow({}, owner);
 

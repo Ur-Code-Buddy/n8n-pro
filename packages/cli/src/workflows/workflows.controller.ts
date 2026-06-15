@@ -551,6 +551,7 @@ export class WorkflowsController {
 	@Put('/:workflowId/share')
 	async share(
 		req: WorkflowRequest.Share,
+		_res: unknown,
 		@Body body: ShareWorkflowBodyDto,
 	) {
 		const { workflowId } = req.params;
