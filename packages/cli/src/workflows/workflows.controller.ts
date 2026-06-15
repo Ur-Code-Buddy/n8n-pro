@@ -549,11 +549,13 @@ export class WorkflowsController {
 
 	@Licensed('feat:sharing')
 	@Put('/:workflowId/share')
-	async share(
-		req: WorkflowRequest.Share,
-		_res: unknown,
-		@Body body: ShareWorkflowBodyDto,
-	) {
+	async share(req: WorkflowRequest.Share) {
+		const parseResult = ShareWorkflowBodyDto.safeParse(req.body);
+		if (!parseResult.success) {
+			throw new BadRequestError(parseResult.error.errors[0]?.message ?? 'Bad request');
+		}
+		const body = parseResult.data;
+
 		const { workflowId } = req.params;
 		const targetShares = this.getWorkflowShareTargets(body);
 
