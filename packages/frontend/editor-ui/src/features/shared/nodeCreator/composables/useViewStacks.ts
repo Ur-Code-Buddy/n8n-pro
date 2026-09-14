@@ -45,7 +45,7 @@ import {
 } from '../nodeCreator.utils';
 
 import type { NodeViewItem, NodeViewItemSection } from '../views/viewsData';
-import { AINodesView } from '../views/viewsData';
+import { AINodesView, getKnowledgeSubcategoryItems } from '../views/viewsData';
 import { useI18n } from '@n8n/i18n';
 import { useKeyboardNavigation } from './useKeyboardNavigation';
 
@@ -448,7 +448,11 @@ export const useViewStacks = defineStore('nodeCreatorViewStacks', () => {
 		} else {
 			nodesByConnectionType = useNodeTypesStore().visibleNodeTypesByOutputConnectionTypeNames;
 
-			relatedAIView = AINodesView([]).items.find(
+			// Document Loader/Embedding/Vector Store/Retriever sockets render
+			// under the nested "Knowledge" view (see AIKnowledgeNodesView),
+			// not directly in AINodesView's own items -- search both so a "+"
+			// click on one of these sockets still resolves a title/icon.
+			relatedAIView = [...AINodesView([]).items, ...getKnowledgeSubcategoryItems()].find(
 				(item) => item.properties.connectionType === connectionType,
 			);
 		}

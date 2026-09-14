@@ -3,13 +3,20 @@ import { createTestingPinia } from '@pinia/testing';
 import {
 	AI_CATEGORY_AGENTS,
 	AI_CATEGORY_CHAINS,
+	AI_KNOWLEDGE_NODE_CREATOR_VIEW,
 	AI_TRANSFORM_NODE_TYPE,
 	MESSAGE_AN_AGENT_NODE_TYPE,
 } from '@/app/constants';
 import type { INodeTypeDescription } from 'n8n-workflow';
-import { MANUAL_TRIGGER_NODE_TYPE } from 'n8n-workflow';
+import { MANUAL_TRIGGER_NODE_TYPE, NodeConnectionTypes } from 'n8n-workflow';
 import { useSettingsStore } from '@/app/stores/settings.store';
-import { AIView, HitlToolView } from './viewsData';
+import {
+	AIKnowledgeNodesView,
+	AINodesView,
+	AIView,
+	getKnowledgeSubcategoryItems,
+	HitlToolView,
+} from './viewsData';
 import { mockNodeTypeDescription } from '@/__tests__/mocks';
 import { useTemplatesStore } from '@/features/workflows/templates/templates.store';
 import type { SimplifiedNodeType } from '@/Interface';
@@ -211,6 +218,59 @@ describe('viewsData', () => {
 				name: 'badge-check',
 			});
 			expect(result.items).toHaveLength(1);
+		});
+	});
+
+	describe('AINodesView', () => {
+		test('groups Document Loaders/Embeddings/Vector Stores/Retrievers under one "Knowledge" view-link instead of listing them directly', () => {
+			const result = AINodesView([]);
+
+			const knowledgeLink = result.items.find(
+				(item) => item.key === AI_KNOWLEDGE_NODE_CREATOR_VIEW,
+			);
+			expect(knowledgeLink).toBeDefined();
+			expect(knowledgeLink?.type).toBe('view');
+
+			const directSubcategoryKeys = result.items
+				.filter((item) => item.type === 'subcategory')
+				.map((item) => item.key);
+			expect(directSubcategoryKeys).not.toContain('Document Loaders');
+			expect(directSubcategoryKeys).not.toContain('Embeddings');
+			expect(directSubcategoryKeys).not.toContain('Vector Stores');
+			expect(directSubcategoryKeys).not.toContain('Retrievers');
+
+			// Unrelated AI categories stay listed directly, unaffected by the grouping
+			expect(directSubcategoryKeys).toEqual(
+				expect.arrayContaining(['Language Models', 'Memory', 'Output Parsers', 'Text Splitters']),
+			);
+		});
+	});
+
+	describe('AIKnowledgeNodesView', () => {
+		test('lists exactly the four RAG-stack subcategories', () => {
+			const result = AIKnowledgeNodesView([]);
+
+			expect(result.value).toBe(AI_KNOWLEDGE_NODE_CREATOR_VIEW);
+			expect(result.items.map((item) => item.key)).toEqual([
+				'Document Loaders',
+				'Embeddings',
+				'Vector Stores',
+				'Retrievers',
+			]);
+		});
+
+		test('each item keeps its real connectionType, so "+" clicks on those sockets still resolve', () => {
+			const items = getKnowledgeSubcategoryItems();
+			const connectionTypeByKey = Object.fromEntries(
+				items.map((item) => [item.key, item.properties.connectionType]),
+			);
+
+			expect(connectionTypeByKey).toEqual({
+				'Document Loaders': NodeConnectionTypes.AiDocument,
+				Embeddings: NodeConnectionTypes.AiEmbedding,
+				'Vector Stores': NodeConnectionTypes.AiVectorStore,
+				Retrievers: NodeConnectionTypes.AiRetriever,
+			});
 		});
 	});
 });

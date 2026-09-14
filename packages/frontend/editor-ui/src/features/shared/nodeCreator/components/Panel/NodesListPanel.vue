@@ -4,6 +4,7 @@ import {
 	AI_EVALUATION,
 	AI_NODE_CREATOR_VIEW,
 	AI_OTHERS_NODE_CREATOR_VIEW,
+	AI_KNOWLEDGE_NODE_CREATOR_VIEW,
 	AI_UNCATEGORIZED_CATEGORY,
 	HUMAN_IN_THE_LOOP_CATEGORY,
 	REGULAR_NODE_CREATOR_VIEW,
@@ -20,6 +21,7 @@ import { useI18n } from '@n8n/i18n';
 import { useKeyboardNavigation } from '../../composables/useKeyboardNavigation';
 import { useViewStacks, type ViewStack } from '../../composables/useViewStacks';
 import {
+	AIKnowledgeNodesView,
 	AINodesView,
 	AIView,
 	HitlToolView,
@@ -149,6 +151,7 @@ watch(
 			[REGULAR_NODE_CREATOR_VIEW]: RegularView,
 			[AI_NODE_CREATOR_VIEW]: AIView,
 			[AI_OTHERS_NODE_CREATOR_VIEW]: AINodesView,
+			[AI_KNOWLEDGE_NODE_CREATOR_VIEW]: AIKnowledgeNodesView,
 			[AI_UNCATEGORIZED_CATEGORY]: AINodesView,
 			[AI_EVALUATION]: AINodesView,
 			[HUMAN_IN_THE_LOOP_CATEGORY]: HitlToolView,
