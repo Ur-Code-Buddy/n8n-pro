@@ -117,7 +117,9 @@ const hasFavorites = computed(() => favoritesStore.favorites.length > 0);
 
 const instanceAi = computed<IMenuItem>(() => ({
 	id: 'instance-ai',
-	icon: 'sparkles',
+	// Distinct from the canvas Copilot's icon -- this item operates the
+	// instance itself (browser/computer use), not a workflow-building chat.
+	icon: 'terminal',
 	label: locale.baseText('projects.menu.instanceAi'),
 	route: { to: { name: INSTANCE_AI_VIEW } },
 	preview: true,
