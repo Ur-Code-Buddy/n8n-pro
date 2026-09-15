@@ -18,6 +18,11 @@ import {
 	getSubtreeTotalConsumedTokens,
 	isPlaceholderLog,
 } from '@/features/execution/logs/logs.utils';
+import {
+	getSubtreeTotalEstimatedCost,
+	priceEntriesToMap,
+} from '@/features/execution/logs/logsCostEstimate.utils';
+import { useAiModelPricingStore } from '@/features/ai/modelPricing/aiModelPricing.store';
 import { LOG_DETAILS_PANEL_STATE } from '@/features/execution/logs/logs.constants';
 import { injectNDVStore } from '@/features/ndv/shared/ndv.store';
 import { useExperimentalNdvStore } from '@/features/workflows/canvas/experimental/experimentalNdv.store';
@@ -67,8 +72,14 @@ const experimentalNdvStore = useExperimentalNdvStore();
 const uiStore = useUIStore();
 const { isRedacted, canReveal, isDynamicCredentials, revealData } = useExecutionRedaction();
 
+const pricingStore = useAiModelPricingStore();
+const priceByModel = computed(() => priceEntriesToMap(pricingStore.entries));
+
 const type = computed(() => nodeTypeStore.getNodeType(logEntry.node.type));
 const consumedTokens = computed(() => getSubtreeTotalConsumedTokens(logEntry, false));
+const estimatedCost = computed(() =>
+	getSubtreeTotalEstimatedCost(logEntry, false, priceByModel.value),
+);
 const isTriggerNode = computed(() => type.value?.group.includes('trigger'));
 const { link: messageAgentSessionLink } = useMessageAgentSessionLink(computed(() => logEntry));
 const container = useTemplateRef<HTMLElement>('container');
@@ -122,6 +133,7 @@ function handleResizeEnd() {
 						:class="$style.executionSummary"
 						:status="logEntry.runData.executionStatus ?? 'unknown'"
 						:consumed-tokens="consumedTokens"
+						:estimated-cost="estimatedCost"
 						:start-time="logEntry.runData.startTime"
 						:time-took="logEntry.runData.executionTime"
 					/>

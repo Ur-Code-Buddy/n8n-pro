@@ -71,6 +71,14 @@ export function useSettingsItems() {
 						: undefined,
 			},
 			{
+				id: 'settings-model-pricing',
+				icon: 'circle-dollar-sign',
+				label: i18n.baseText('settings.modelPricing.title'),
+				position: 'top',
+				available: canUserAccessRouteByName(VIEWS.AI_MODEL_PRICING_SETTINGS),
+				route: { to: { name: VIEWS.AI_MODEL_PRICING_SETTINGS } },
+			},
+			{
 				id: 'settings-project-roles',
 				icon: 'user-round',
 				label: i18n.baseText('settings.projectRoles'),

@@ -17,6 +17,7 @@ import { useI18n } from '@n8n/i18n';
 import { useSettingsStore } from '@/app/stores/settings.store';
 import ConcurrentExecutionsHeader from '../ConcurrentExecutionsHeader.vue';
 import ExecutionStopAllText from '../ExecutionStopAllText.vue';
+import WorkflowRecentFailuresText from '../WorkflowRecentFailuresText.vue';
 import { usePageRedirectionHelper } from '@/app/composables/usePageRedirectionHelper';
 import { useIntersectionObserver } from '@/app/composables/useIntersectionObserver';
 
@@ -133,12 +134,19 @@ function onRetryExecution(payload: { execution: ExecutionSummary; command: strin
 	emit('retryExecution', payload);
 }
 
+const currentStatusFilter = ref<string>('all');
+
 function onFilterChanged(filter: ExecutionFilterType) {
 	autoScrollDeps.value.activeExecutionSet = false;
 	autoScrollDeps.value.cardsMounted = false;
 	autoScrollDeps.value.scroll = true;
+	currentStatusFilter.value = filter.status;
 	emit('filterUpdated', filter);
 }
+
+// Redundant once the list is already narrowed to a single status (e.g. the
+// user filtered to "Error" themselves) -- every row would trivially match.
+const showRecentFailures = computed(() => currentStatusFilter.value === 'all');
 
 function onAutoRefreshChange(enabled: boolean) {
 	emit('update:autoRefresh', enabled);
@@ -184,6 +192,7 @@ const goToUpgrade = () => {
 				@go-to-upgrade="goToUpgrade"
 			/>
 			<ExecutionStopAllText :executions="props.executions" />
+			<WorkflowRecentFailuresText v-if="showRecentFailures" :executions="props.executions" />
 		</div>
 		<div :class="$style.controls">
 			<N8nCheckbox

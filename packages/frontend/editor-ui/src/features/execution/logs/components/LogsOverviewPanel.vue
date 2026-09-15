@@ -8,6 +8,12 @@ import {
 	getSubtreeTotalConsumedTokens,
 	getTotalConsumedTokens,
 } from '@/features/execution/logs/logs.utils';
+import {
+	getSubtreeTotalEstimatedCost,
+	getTotalEstimatedCost,
+	priceEntriesToMap,
+} from '@/features/execution/logs/logsCostEstimate.utils';
+import { useAiModelPricingStore } from '@/features/ai/modelPricing/aiModelPricing.store';
 import type { IExecutionResponse } from '@/features/execution/executions/executions.types';
 import { getScrollbarWidth } from '@/app/utils/htmlUtils';
 import { N8nButton, N8nRadioButtons, N8nText, N8nTooltip } from '@n8n/design-system';
@@ -49,6 +55,8 @@ defineSlots<{ actions: {} }>();
 const locale = useI18n();
 const isClearExecutionButtonVisible = useClearExecutionButtonVisible();
 const isEmpty = computed(() => flatLogEntries.length === 0 || execution === undefined);
+const pricingStore = useAiModelPricingStore();
+const priceByModel = computed(() => priceEntriesToMap(pricingStore.entries));
 const switchViewOptions = computed(() => [
 	{ label: locale.baseText('logs.overview.header.switch.overview'), value: 'overview' as const },
 	{ label: locale.baseText('logs.overview.header.switch.details'), value: 'details' as const },
@@ -62,6 +70,11 @@ const consumedTokens = computed(() =>
 				false, // Exclude token usages from sub workflow which is loaded only after expanding the row
 			),
 		),
+	),
+);
+const estimatedCost = computed(() =>
+	getTotalEstimatedCost(
+		...entries.map((entry) => getSubtreeTotalEstimatedCost(entry, false, priceByModel.value)),
 	),
 );
 const timeTook = computed(() =>
@@ -131,6 +144,7 @@ function handleSwitchView(value: 'overview' | 'details') {
 					:class="$style.summary"
 					:status="execution.status"
 					:consumed-tokens="consumedTokens"
+					:estimated-cost="estimatedCost"
 					:start-time="+new Date(execution.startedAt)"
 					:time-took="timeTook"
 				/>

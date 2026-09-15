@@ -107,6 +107,8 @@ const EvaluationRootView = async () =>
 const SettingsAIView = async () => await import('@/features/ai/assistant/views/SettingsAIView.vue');
 const SettingsAiGatewayView = async () =>
 	await import('@/features/ai/gateway/views/SettingsAiGatewayView.vue');
+const SettingsAiModelPricingView = async () =>
+	await import('@/features/ai/modelPricing/views/SettingsAiModelPricingView.vue');
 const ResourceCenterView = async () =>
 	await import('@/experiments/resourceCenter/views/ResourceCenterView.vue');
 
@@ -739,6 +741,27 @@ export const routes: RouteRecordRaw[] = [
 						getProperties() {
 							return {
 								feature: 'assistant',
+							};
+						},
+					},
+				},
+			},
+			{
+				path: 'ai-model-pricing',
+				name: VIEWS.AI_MODEL_PRICING_SETTINGS,
+				component: SettingsAiModelPricingView,
+				meta: {
+					middleware: ['authenticated', 'rbac'],
+					middlewareOptions: {
+						rbac: {
+							scope: 'aiAssistant:manage',
+						},
+					},
+					telemetry: {
+						pageCategory: 'settings',
+						getProperties() {
+							return {
+								feature: 'model-pricing',
 							};
 						},
 					},

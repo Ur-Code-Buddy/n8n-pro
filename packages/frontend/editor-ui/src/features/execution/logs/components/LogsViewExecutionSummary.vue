@@ -2,15 +2,17 @@
 import LogsViewConsumedTokenCountText from '@/features/execution/logs/components/LogsViewConsumedTokenCountText.vue';
 import { useI18n } from '@n8n/i18n';
 import { type LlmTokenUsageData } from '@/Interface';
+import type { EstimatedCost } from '@/features/execution/logs/logsCostEstimate.utils';
 import { useTimestamp } from '@vueuse/core';
 import upperFirst from 'lodash/upperFirst';
 import { type ExecutionStatus } from 'n8n-workflow';
 import { computed } from 'vue';
 
 import { N8nText } from '@n8n/design-system';
-const { status, consumedTokens, startTime, timeTook } = defineProps<{
+const { status, consumedTokens, estimatedCost, startTime, timeTook } = defineProps<{
 	status: ExecutionStatus;
 	consumedTokens: LlmTokenUsageData;
+	estimatedCost?: EstimatedCost;
 	startTime: number;
 	timeTook?: number;
 }>();
@@ -42,6 +44,7 @@ const executionStatusText = computed(() =>
 		<LogsViewConsumedTokenCountText
 			v-if="consumedTokens.totalTokens > 0"
 			:consumed-tokens="consumedTokens"
+			:estimated-cost="estimatedCost"
 		/>
 	</N8nText>
 </template>
