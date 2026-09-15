@@ -1,6 +1,5 @@
 import { testDb, mockInstance } from '@n8n/backend-test-utils';
 
-import { FeatureNotLicensedError } from '@/errors/feature-not-licensed.error';
 import { Telemetry } from '@/telemetry';
 import { createRole } from '@test-integration/db/roles';
 import {
@@ -212,7 +211,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const member = await createMemberWithApiKey();
 			const payload = [{ email: 'test@test.com', role: 'global:admin' }];
 
@@ -232,7 +230,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const owner = await createOwnerWithApiKey();
 			const payload = [{ email: 'test@test.com', role: 'non-existing-role' }];
 
@@ -252,7 +249,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const owner = await createOwnerWithApiKey();
 			const payload = [{ email: 'test@test.com', role: 'global:admin' }];
 
@@ -288,7 +284,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const owner = await createOwnerWithApiKey();
 			const customRole = 'custom:role';
 			await createRole({ slug: customRole, displayName: 'Custom role', roleType: 'global' });
@@ -328,7 +323,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const member = await createMemberWithApiKey();
 			const secondMember = await createMember();
 
@@ -350,7 +344,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const owner = await createOwnerWithApiKey();
 			const member = await createMember();
 
@@ -387,37 +380,10 @@ describe('Users in Public API', () => {
 			expect(response.status).toBe(401);
 		});
 
-		it('if not licensed, should reject', async () => {
-			/**
-			 * Arrange
-			 */
-			const owner = await createOwnerWithApiKey();
-			const member = await createMember();
-			const payload = { newRoleName: 'global:admin' };
-
-			/**
-			 * Act
-			 */
-			const response = await testServer
-				.publicApiAgentFor(owner)
-				.patch(`/users/${member.id}/role`)
-				.send(payload);
-
-			/**
-			 * Assert
-			 */
-			expect(response.status).toBe(403);
-			expect(response.body).toHaveProperty(
-				'message',
-				new FeatureNotLicensedError('feat:advancedPermissions').message,
-			);
-		});
-
 		it('if missing scope, should reject', async () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const member = await createMemberWithApiKey();
 			const secondMember = await createMember();
 			const payload = { newRoleName: 'global:admin' };
@@ -441,7 +407,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const owner = await createOwnerWithApiKey();
 			const member = await createMember();
 			const payload = { newRoleName: 'invalid' };
@@ -464,7 +429,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const owner = await createOwnerWithApiKey();
 			const member = await createMember();
 			const payload = { newRoleName: 'global:admin' };
@@ -489,7 +453,6 @@ describe('Users in Public API', () => {
 			/**
 			 * Arrange
 			 */
-			testServer.license.enable('feat:advancedPermissions');
 			const owner = await createOwnerWithApiKey();
 			const member = await createMember();
 			const customRole = 'custom:role';

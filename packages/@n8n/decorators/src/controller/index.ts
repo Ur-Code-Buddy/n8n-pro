@@ -4,7 +4,6 @@ export { RootLevelController } from './root-level-controller';
 export { Get, Post, Put, Patch, Delete, Head, Options } from './route';
 export { Middleware } from './middleware';
 export { ControllerRegistryMetadata } from './controller-registry-metadata';
-export { Licensed } from './licensed';
 export { GlobalScope, ProjectScope } from './scoped';
 export type {
 	AccessScope,

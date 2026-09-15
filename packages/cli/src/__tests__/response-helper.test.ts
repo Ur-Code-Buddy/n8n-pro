@@ -2,8 +2,17 @@ import { QueryFailedError } from '@n8n/db';
 import type { Response } from 'express';
 import { mock } from 'jest-mock-extended';
 
-import { LicenseEulaRequiredError } from '@/errors/response-errors/license-eula-required.error';
+import { ResponseError } from '@/errors/response-errors/abstract/response.error';
 import { isUniqueConstraintError, sendErrorResponse } from '@/response-helper';
+
+class TestErrorWithMeta extends ResponseError {
+	readonly meta: Record<string, unknown>;
+
+	constructor(message: string, meta: Record<string, unknown>) {
+		super(message, 400);
+		this.meta = meta;
+	}
+}
 
 describe('sendErrorResponse', () => {
 	let mockResponse: Response;
@@ -15,11 +24,9 @@ describe('sendErrorResponse', () => {
 		});
 	});
 
-	it('should include meta field for LicenseEulaRequiredError', () => {
+	it('should include meta field for errors that carry one', () => {
 		const eulaUrl = 'https://n8n.io/legal/eula/';
-		const error = new LicenseEulaRequiredError('License activation requires EULA acceptance', {
-			eulaUrl,
-		});
+		const error = new TestErrorWithMeta('Some error with meta', { eulaUrl });
 
 		sendErrorResponse(mockResponse, error);
 
@@ -27,7 +34,7 @@ describe('sendErrorResponse', () => {
 		expect(mockResponse.json).toHaveBeenCalledWith(
 			expect.objectContaining({
 				code: 400,
-				message: 'License activation requires EULA acceptance',
+				message: 'Some error with meta',
 				meta: { eulaUrl },
 			}),
 		);

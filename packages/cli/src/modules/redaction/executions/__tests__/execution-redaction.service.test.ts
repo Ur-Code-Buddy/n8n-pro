@@ -1,4 +1,4 @@
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { mockInstance } from '@n8n/backend-test-utils';
 import type { User } from '@n8n/db';
 import type { IRunExecutionData, ITaskData, WorkflowExecuteMode } from 'n8n-workflow';
@@ -18,7 +18,6 @@ import { FullItemRedactionStrategy } from '../strategies/full-item-redaction.str
 
 describe('ExecutionRedactionService', () => {
 	const logger = mockInstance(Logger);
-	const licenseState = mockInstance(LicenseState);
 	const workflowFinderService = mockInstance(WorkflowFinderService);
 	const eventService = mock<EventService>();
 	const fullItemRedactionStrategy = mockInstance(FullItemRedactionStrategy);
@@ -35,10 +34,8 @@ describe('ExecutionRedactionService', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		licenseState.isDataRedactionLicensed.mockReturnValue(true);
 		service = new ExecutionRedactionService(
 			logger,
-			licenseState,
 			workflowFinderService,
 			eventService,
 			fullItemRedactionStrategy,
@@ -626,26 +623,6 @@ describe('ExecutionRedactionService', () => {
 			});
 			await service.processExecution(execution, { user: mockUser });
 			expect(fullItemRedactionStrategy.apply).not.toHaveBeenCalled();
-		});
-	});
-
-	describe('license enforcement', () => {
-		it('should treat policy as none when data-redaction license is missing', async () => {
-			licenseState.isDataRedactionLicensed.mockReturnValue(false);
-
-			const execution = makeExecution({ policy: 'all', mode: 'trigger' });
-			await service.processExecution(execution, { user: mockUser });
-
-			expect(fullItemRedactionStrategy.apply).not.toHaveBeenCalled();
-		});
-
-		it('should apply policy when data-redaction license is present', async () => {
-			licenseState.isDataRedactionLicensed.mockReturnValue(true);
-
-			const execution = makeExecution({ policy: 'all', mode: 'trigger' });
-			await service.processExecution(execution, { user: mockUser });
-
-			expect(fullItemRedactionStrategy.apply).toHaveBeenCalledTimes(1);
 		});
 	});
 

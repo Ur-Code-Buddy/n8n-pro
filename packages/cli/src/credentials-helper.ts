@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { LicenseState } from '@n8n/backend-common';
 import type { CredentialsEntity, ICredentialsDb } from '@n8n/db';
 import { CredentialsRepository, SecretsProviderConnectionRepository } from '@n8n/db';
 import { Service } from '@n8n/di';
@@ -90,7 +89,6 @@ export class CredentialsHelper extends ICredentialsHelper {
 		private readonly credentialsRepository: CredentialsRepository,
 		private readonly dynamicCredentialsProxy: DynamicCredentialsProxy,
 		private readonly secretsProviderConnectionRepository: SecretsProviderConnectionRepository,
-		private readonly licenseState: LicenseState,
 		private readonly externalSecretsConfig: ExternalSecretsConfig,
 		private readonly aiGatewayService: AiGatewayService,
 	) {
@@ -446,10 +444,7 @@ export class CredentialsHelper extends ICredentialsHelper {
 			return decryptedDataOriginal;
 		}
 
-		if (
-			this.licenseState.isExternalSecretsLicensed() &&
-			this.externalSecretsConfig.externalSecretsForProjects
-		) {
+		if (this.externalSecretsConfig.externalSecretsForProjects) {
 			const accessibleProviderKeys =
 				await this.secretsProviderConnectionRepository.findAllAccessibleProviderKeysByCredentialId(
 					credentialsEntity.id,

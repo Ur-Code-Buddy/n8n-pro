@@ -16,13 +16,10 @@ import { Response } from 'express';
 
 import { AuthHandlerRegistry } from '@/auth/auth-handler.registry';
 import { AuthService } from '@/auth/auth.service';
-import { RESPONSE_ERROR_MESSAGES } from '@/constants';
 import { AuthError } from '@/errors/response-errors/auth.error';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { InternalServerError } from '@/errors/response-errors/internal-server.error';
 import { EventService } from '@/events/event.service';
-import { License } from '@/license';
 import { MfaService } from '@/mfa/mfa.service';
 import { PostHogClient } from '@/posthog';
 import { AuthlessRequest } from '@/requests';
@@ -42,7 +39,6 @@ export class AuthController {
 		private readonly authService: AuthService,
 		private readonly mfaService: MfaService,
 		private readonly userService: UserService,
-		private readonly license: License,
 		private readonly userRepository: UserRepository,
 		private readonly eventService: EventService,
 		private readonly authHandlerRegistry: AuthHandlerRegistry,
@@ -224,16 +220,6 @@ export class AuthController {
 		const { inviterId, inviteeId } = await this.userService.getInvitationIdsFromPayload(
 			payload.token,
 		);
-
-		const isWithinUsersLimit = this.license.isWithinUsersLimit();
-
-		if (!isWithinUsersLimit) {
-			this.logger.debug('Request to resolve signup token failed because of users quota reached', {
-				inviterId,
-				inviteeId,
-			});
-			throw new ForbiddenError(RESPONSE_ERROR_MESSAGES.USERS_QUOTA_REACHED);
-		}
 
 		const users = await this.userRepository.findManyByIds([inviterId, inviteeId], {
 			includeRole: true,

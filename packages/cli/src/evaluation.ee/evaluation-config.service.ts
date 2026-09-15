@@ -1,5 +1,4 @@
 import type { UpsertEvaluationConfigDto } from '@n8n/api-types';
-import { LicenseState } from '@n8n/backend-common';
 import type { EvaluationConfig, User, WorkflowEntity } from '@n8n/db';
 import { EvaluationConfigRepository } from '@n8n/db';
 import { Service } from '@n8n/di';
@@ -13,7 +12,6 @@ export class EvaluationConfigService {
 	constructor(
 		private readonly repository: EvaluationConfigRepository,
 		private readonly validator: EvaluationConfigValidator,
-		private readonly licenseState: LicenseState,
 	) {}
 
 	async list(workflowId: string): Promise<EvaluationConfig[]> {
@@ -30,23 +28,6 @@ export class EvaluationConfigService {
 		user: User,
 		dto: UpsertEvaluationConfigDto,
 	): Promise<EvaluationConfig> {
-		// Quota: only enforce on the workflow's *first* config — subsequent configs
-		// on the same workflow do not count against the quota (the limit is workflows
-		// with at least one evaluation, not total configs).
-		const existing = await this.repository.listByWorkflowId(workflowId);
-		if (existing.length === 0) {
-			const limit = this.licenseState.getMaxWorkflowsWithEvaluations();
-			if (limit > 0) {
-				const used = await this.repository.countDistinctWorkflowsWithConfigs();
-				if (used >= limit) {
-					throw new EvaluationApiError(
-						'EVALUATION_QUOTA_EXCEEDED',
-						`Evaluation quota exceeded: ${used}/${limit} workflows already have evaluations`,
-					);
-				}
-			}
-		}
-
 		await this.runValidator(workflow, user, dto);
 
 		return await this.repository.createForWorkflow(nanoid(), workflowId, dto);

@@ -6,7 +6,7 @@ import {
 } from '@n8n/api-types';
 import { InstanceSettingsLoaderConfig } from '@n8n/config';
 import type { AuthenticatedRequest } from '@n8n/db';
-import { Delete, Get, GlobalScope, Licensed, Post, Query, RestController } from '@n8n/decorators';
+import { Delete, Get, GlobalScope, Post, Query, RestController } from '@n8n/decorators';
 import type {
 	MessageEventBusDestinationOptions,
 	MessageEventBusDestinationSentryOptions,
@@ -47,7 +47,6 @@ export class EventBusController {
 		return eventNamesAll;
 	}
 
-	@Licensed('feat:logStreaming')
 	@Get('/destination')
 	@GlobalScope('eventBusDestination:list')
 	async getDestination(
@@ -58,7 +57,6 @@ export class EventBusController {
 		return await this.destinationService.findDestination(query.id);
 	}
 
-	@Licensed('feat:logStreaming')
 	@Post('/destination')
 	@GlobalScope('eventBusDestination:create')
 	async postDestination(req: AuthenticatedRequest): Promise<MessageEventBusDestinationOptions> {
@@ -108,7 +106,6 @@ export class EventBusController {
 		return result.serialize();
 	}
 
-	@Licensed('feat:logStreaming')
 	@Get('/testmessage')
 	@GlobalScope('eventBusDestination:test')
 	async sendTestMessage(
@@ -119,7 +116,6 @@ export class EventBusController {
 		return await this.destinationService.testDestination(query.id);
 	}
 
-	@Licensed('feat:logStreaming')
 	@Delete('/destination')
 	@GlobalScope('eventBusDestination:delete')
 	async deleteDestination(

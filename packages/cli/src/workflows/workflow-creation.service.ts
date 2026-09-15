@@ -1,5 +1,5 @@
 import type { RedactionFloor } from '@n8n/api-types';
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
 import type { EntityManager, Project, User } from '@n8n/db';
 import {
@@ -49,7 +49,6 @@ export class WorkflowCreationService {
 		private readonly eventService: EventService,
 		private readonly globalConfig: GlobalConfig,
 		private readonly workflowFinderService: WorkflowFinderService,
-		private readonly licenseState: LicenseState,
 		private readonly projectRepository: ProjectRepository,
 		private readonly tagRepository: TagRepository,
 		private readonly credentialsService: CredentialsService,
@@ -128,24 +127,22 @@ export class WorkflowCreationService {
 			WorkflowHelpers.validatePinDataSize(newWorkflow);
 		}
 
-		if (this.licenseState.isSharingLicensed()) {
-			// This is a new workflow, so we simply check if the user has access to
-			// all used credentials
+		// This is a new workflow, so we simply check if the user has access to
+		// all used credentials
 
-			const allCredentials = await this.credentialsService.getMany(user, {
-				includeGlobal: true,
-			});
+		const allCredentials = await this.credentialsService.getMany(user, {
+			includeGlobal: true,
+		});
 
-			try {
-				this.enterpriseWorkflowService.validateCredentialPermissionsToUser(
-					newWorkflow,
-					allCredentials,
-				);
-			} catch (error) {
-				throw new BadRequestError(
-					'The workflow you are trying to save contains credentials that are not shared with you',
-				);
-			}
+		try {
+			this.enterpriseWorkflowService.validateCredentialPermissionsToUser(
+				newWorkflow,
+				allCredentials,
+			);
+		} catch (error) {
+			throw new BadRequestError(
+				'The workflow you are trying to save contains credentials that are not shared with you',
+			);
 		}
 
 		// Reject illegal credential-to-node bindings before persisting
@@ -257,7 +254,6 @@ export class WorkflowCreationService {
 	}
 
 	private async readActiveRedactionFloor(): Promise<RedactionFloor> {
-		if (!this.licenseState.isDataRedactionLicensed()) return 'off';
 		return await this.instanceRedactionEnforcementService.get();
 	}
 
@@ -268,12 +264,6 @@ export class WorkflowCreationService {
 		transactionManager: EntityManager,
 		floor: RedactionFloor,
 	): Promise<void> {
-		// No license — the field is meaningless, drop any incoming value.
-		if (!this.licenseState.isDataRedactionLicensed()) {
-			dropRedactionPolicy(newWorkflow);
-			return;
-		}
-
 		const incomingPolicy = newWorkflow.settings?.redactionPolicy;
 		const hasIncoming = incomingPolicy !== undefined && incomingPolicy !== 'none';
 

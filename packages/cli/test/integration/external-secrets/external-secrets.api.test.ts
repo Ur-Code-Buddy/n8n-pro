@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import { mockInstance, mockLogger } from '@n8n/backend-test-utils';
 import { SecretsProviderConnectionRepository } from '@n8n/db';
 import { Container } from '@n8n/di';
@@ -34,13 +33,9 @@ let authMemberAgent: SuperAgentTest;
 
 const mockProvidersInstance = new MockProviders();
 mockInstance(ExternalSecretsProviders, mockProvidersInstance);
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(true);
-Container.set(LicenseState, licenseMock);
 
 const testServer = setupTestServer({
 	endpointGroups: ['externalSecrets'],
-	enabledFeatures: ['feat:externalSecrets'],
 	modules: ['external-secrets'],
 });
 

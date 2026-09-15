@@ -1,4 +1,3 @@
-import type { LicenseState } from '@n8n/backend-common';
 import {
 	createTeamProject,
 	createWorkflow,
@@ -13,7 +12,6 @@ import type { MockProxy } from 'jest-mock-extended';
 import { mock } from 'jest-mock-extended';
 import { DateTime } from 'luxon';
 import type { InstanceSettings } from 'n8n-core';
-import { UserError } from 'n8n-workflow';
 
 import { createCompactedInsightsEvent } from '../database/entities/__tests__/db-utils';
 import type { InsightsByPeriodRepository } from '../database/repositories/insights-by-period.repository';
@@ -62,7 +60,6 @@ describe('InsightsService (Integration)', () => {
 				mock<InsightsByPeriodRepository>(),
 				compactionService,
 				pruningService,
-				mock<LicenseState>(),
 				instanceSettings,
 				mockLogger(),
 			);
@@ -974,108 +971,6 @@ describe('InsightsService (Integration)', () => {
 		});
 	});
 
-	describe('validateDateFiltersLicense', () => {
-		let licenseStateMock: jest.Mocked<LicenseState>;
-		let insightsService: InsightsService;
-
-		beforeEach(() => {
-			licenseStateMock = mock<LicenseState>();
-			insightsService = new InsightsService(
-				mock<InsightsByPeriodRepository>(),
-				mock<InsightsCompactionService>(),
-				mock<InsightsPruningService>(),
-				licenseStateMock,
-				mock<InstanceSettings>(),
-				mockLogger(),
-			);
-		});
-
-		test('throws error if granularity is hour and hourly data is not licensed', () => {
-			licenseStateMock.isInsightsHourlyDataLicensed.mockReturnValue(false);
-			licenseStateMock.getInsightsMaxHistory.mockReturnValue(30);
-
-			const startDate = DateTime.now().minus({ days: 3 }).startOf('day');
-			const endDate = startDate.plus({ hours: 10 });
-
-			const execution = () =>
-				insightsService.validateDateFiltersLicense({
-					startDate: startDate.toJSDate(),
-					endDate: endDate.toJSDate(),
-				});
-			expect(execution).toThrow(UserError);
-			expect(execution).toThrow('Hourly data is not available with your current license');
-		});
-
-		test('does not throw if granularity is hour and hourly data is licensed', () => {
-			licenseStateMock.isInsightsHourlyDataLicensed.mockReturnValue(true);
-			licenseStateMock.getInsightsMaxHistory.mockReturnValue(30);
-
-			const startDate = DateTime.now().minus({ days: 3 }).startOf('day');
-			const endDate = startDate.endOf('day');
-
-			expect(() =>
-				insightsService.validateDateFiltersLicense({
-					startDate: startDate.toJSDate(),
-					endDate: endDate.toJSDate(),
-				}),
-			).not.toThrow();
-		});
-
-		test('throws error if startDate is outside max history allowed by license', () => {
-			licenseStateMock.isInsightsHourlyDataLicensed.mockReturnValue(true);
-			licenseStateMock.getInsightsMaxHistory.mockReturnValue(7);
-
-			const today = DateTime.now().startOf('day');
-			const startDate = today.minus({ days: 8 }).toJSDate();
-			const endDate = today.toJSDate();
-
-			const execution = () => insightsService.validateDateFiltersLicense({ startDate, endDate });
-			expect(execution).toThrow(UserError);
-			expect(execution).toThrow(
-				'The selected date range exceeds the maximum history allowed by your license',
-			);
-		});
-
-		test('does not throw if startDate is within max history allowed by license', () => {
-			licenseStateMock.isInsightsHourlyDataLicensed.mockReturnValue(true);
-			licenseStateMock.getInsightsMaxHistory.mockReturnValue(7);
-
-			const today = DateTime.now().startOf('day');
-			const startDate = today.minus({ days: 7 }).toJSDate();
-			const endDate = today.toJSDate();
-
-			expect(() =>
-				insightsService.validateDateFiltersLicense({ startDate, endDate }),
-			).not.toThrow();
-		});
-
-		test('does not throw if max history is unlimited (-1)', () => {
-			licenseStateMock.isInsightsHourlyDataLicensed.mockReturnValue(true);
-			licenseStateMock.getInsightsMaxHistory.mockReturnValue(-1);
-
-			const today = DateTime.now().startOf('day');
-			const startDate = today.minus({ years: 3 }).toJSDate();
-			const endDate = today.toJSDate();
-
-			expect(() =>
-				insightsService.validateDateFiltersLicense({ startDate, endDate }),
-			).not.toThrow();
-		});
-
-		test('does not throw for day granularity when hourly data is not licensed', () => {
-			licenseStateMock.isInsightsHourlyDataLicensed.mockReturnValue(false);
-			licenseStateMock.getInsightsMaxHistory.mockReturnValue(30);
-
-			const today = DateTime.now().startOf('day');
-			const startDate = today.minus({ days: 2 }).toJSDate();
-			const endDate = today.toJSDate();
-
-			expect(() =>
-				insightsService.validateDateFiltersLicense({ startDate, endDate }),
-			).not.toThrow();
-		});
-	});
-
 	describe('shutdown', () => {
 		let insightsService: InsightsService;
 
@@ -1092,7 +987,6 @@ describe('InsightsService (Integration)', () => {
 				mock<InsightsByPeriodRepository>(),
 				mockCompactionService,
 				mockPruningService,
-				mock<LicenseState>(),
 				mock<InstanceSettings>({ instanceType: 'main' }),
 				mockLogger(),
 			);

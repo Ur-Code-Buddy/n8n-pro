@@ -21,7 +21,6 @@ let authOwnerAgent: SuperAgentTest;
 const ownerPassword = randomValidPassword();
 
 const testServer = utils.setupTestServer({ endpointGroups: ['auth'] });
-const license = testServer.license;
 
 let mfaService: MfaService;
 
@@ -124,22 +123,7 @@ describe('POST /login', () => {
 		expect(authToken).toBeDefined();
 	});
 
-	test('should throw AuthError for non-owner if not within users limit quota', async () => {
-		license.setQuota('quota:users', 0);
-		const password = 'testpassword';
-		const member = await createUser({
-			password,
-		});
-
-		const response = await testServer.authlessAgent.post('/login').send({
-			emailOrLdapLoginId: member.email,
-			password,
-		});
-		expect(response.statusCode).toBe(403);
-	});
-
-	test('should not throw AuthError for owner if not within users limit quota', async () => {
-		license.setQuota('quota:users', 0);
+	test('should not throw AuthError for owner', async () => {
 		const ownerUser = await createUser({
 			password: randomValidPassword(),
 			role: GLOBAL_OWNER_ROLE,
@@ -351,19 +335,6 @@ describe('GET /resolve-signup-token', () => {
 				},
 			},
 		});
-	});
-
-	test('should return 403 if user quota reached', async () => {
-		license.setQuota('quota:users', 0);
-		const memberShell = await createUserShell(GLOBAL_MEMBER_ROLE);
-		const token = Container.get(JwtService).sign(
-			{ inviterId: owner.id, inviteeId: memberShell.id },
-			{ expiresIn: '90d' },
-		);
-
-		const response = await authOwnerAgent.get('/resolve-signup-token').query({ token });
-
-		expect(response.statusCode).toBe(403);
 	});
 
 	test('should fail with invalid inputs', async () => {

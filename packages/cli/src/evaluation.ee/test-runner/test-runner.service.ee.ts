@@ -54,7 +54,6 @@ import {
 	checkNodeParameterNotEmpty,
 	extractTokenUsage,
 } from '@/evaluation.ee/test-runner/utils.ee';
-import { License } from '@/license';
 import { Telemetry } from '@/telemetry';
 import { WorkflowRunner } from '@/workflow-runner';
 
@@ -98,7 +97,6 @@ export class TestRunnerService {
 		private readonly publisher: Publisher,
 		private readonly instanceSettings: InstanceSettings,
 		private readonly concurrencyControlService: ConcurrencyControlService,
-		private readonly license: License,
 		private readonly workflowHistoryService: WorkflowHistoryService,
 		private readonly evaluationCollectionRepository: EvaluationCollectionRepository,
 		private readonly evaluationConfigRepository: EvaluationConfigRepository,
@@ -536,9 +534,9 @@ export class TestRunnerService {
 	 *     validates this via zod, but direct service callers must not exceed
 	 *     it either).
 	 *   - Further clamped to the effective evaluation limit resolved by
-	 *     {@link resolveEvaluationConcurrencyLimit} (env override → tier
-	 *     default). `concurrency_limited_by_config` is recorded in telemetry
-	 *     when this kicks in.
+	 *     {@link resolveEvaluationConcurrencyLimit} (env override → unlimited).
+	 *     `concurrency_limited_by_config` is recorded in telemetry when this
+	 *     kicks in.
 	 *
 	 * `concurrency = 1` reproduces the legacy sequential behaviour exactly.
 	 */
@@ -567,7 +565,7 @@ export class TestRunnerService {
 		},
 	): Promise<{ testRun: TestRun; finished: Promise<void> }> {
 		const requestedConcurrency = Math.max(1, Math.min(10, Math.floor(concurrency)));
-		const evaluationLimit = resolveEvaluationConcurrencyLimit(this.executionsConfig, this.license);
+		const evaluationLimit = resolveEvaluationConcurrencyLimit(this.executionsConfig);
 		const concurrencyLimitedByConfig =
 			evaluationLimit > 0 && requestedConcurrency > evaluationLimit;
 		const effectiveConcurrency = concurrencyLimitedByConfig
@@ -698,7 +696,7 @@ export class TestRunnerService {
 			concurrency: effectiveConcurrency,
 			parallel_enabled: effectiveConcurrency > 1,
 			concurrency_limited_by_config: concurrencyLimitedByConfig,
-			concurrency_limit_source: getEvaluationConcurrencyLimitSource(this.license),
+			concurrency_limit_source: getEvaluationConcurrencyLimitSource(),
 			// Realised parallelism observed at runtime — `cases_started` counts
 			// callbacks that actually began (post-throttle, pre-abort), and
 			// `peak_in_flight` is the high-water mark for in-flight cases.

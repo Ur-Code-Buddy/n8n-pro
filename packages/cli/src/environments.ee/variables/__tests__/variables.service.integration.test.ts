@@ -17,7 +17,6 @@ describe('VariablesService', () => {
 	let variablesRepository: VariablesRepository;
 	let cacheService: CacheService;
 	let projectService: ProjectService;
-	let licenseState: { isVariablesLicensed: jest.Mock; getMaxVariables: jest.Mock };
 
 	beforeAll(async () => {
 		await testDb.init();
@@ -31,16 +30,11 @@ describe('VariablesService', () => {
 		variablesRepository = Container.get(VariablesRepository);
 		cacheService = Container.get(CacheService);
 		projectService = Container.get(ProjectService);
-		licenseState = {
-			isVariablesLicensed: jest.fn().mockReturnValue(true),
-			getMaxVariables: jest.fn().mockReturnValue(5),
-		};
 
 		variablesService = new VariablesService(
 			cacheService,
 			variablesRepository,
 			mock<EventService>(),
-			licenseState as any,
 			projectService,
 		);
 	});

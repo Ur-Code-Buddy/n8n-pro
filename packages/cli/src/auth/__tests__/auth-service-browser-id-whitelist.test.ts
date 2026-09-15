@@ -23,7 +23,6 @@ describe('AuthService Browser ID Whitelist', () => {
 		authService = new AuthService(
 			globalConfig,
 			mock(),
-			mock(),
 			jwtService,
 			urlService,
 			userRepository,

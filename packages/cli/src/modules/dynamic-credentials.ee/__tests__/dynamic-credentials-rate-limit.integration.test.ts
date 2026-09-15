@@ -8,12 +8,10 @@ jest.mock('@n8n/backend-common', () => {
 });
 /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
 
-import { LicenseState } from '@n8n/backend-common';
 import { mockInstance, testDb } from '@n8n/backend-test-utils';
 import { CredentialsRepository } from '@n8n/db';
 import type { ICredentialResolver } from '@n8n/decorators';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 import { Cipher } from 'n8n-core';
 
 import { EnterpriseCredentialsService } from '@/credentials/credentials.service.ee';
@@ -28,11 +26,6 @@ import type { CredentialResolverWorkflowService } from '../services/credential-r
 // Enable dynamic credentials feature flag
 process.env.N8N_ENV_FEAT_DYNAMIC_CREDENTIALS = 'true';
 
-// Mock license
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(true);
-Container.set(LicenseState, licenseMock);
-
 const RATE_LIMIT = 5;
 
 mockInstance(DynamicCredentialsConfig, {
@@ -45,7 +38,6 @@ mockInstance(DynamicCredentialsConfig, {
 
 const testServer = utils.setupTestServer({
 	endpointGroups: ['credentials'],
-	enabledFeatures: ['feat:externalSecrets'],
 	modules: ['dynamic-credentials'],
 });
 

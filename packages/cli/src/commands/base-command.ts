@@ -1,14 +1,6 @@
 import 'reflect-metadata';
-import {
-	inDevelopment,
-	inTest,
-	LicenseState,
-	Logger,
-	ModuleRegistry,
-	ModulesConfig,
-} from '@n8n/backend-common';
+import { inDevelopment, inTest, Logger, ModuleRegistry, ModulesConfig } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
-import { LICENSE_FEATURES } from '@n8n/constants';
 import { DbConnection } from '@n8n/db';
 import { Container } from '@n8n/di';
 import {
@@ -20,7 +12,7 @@ import {
 	ExecutionContextHookRegistry,
 } from 'n8n-core';
 import { ObjectStoreConfig } from 'n8n-core/dist/binary-data/object-store/object-store.config';
-import { ensureError, Expression, sleep, UnexpectedError } from 'n8n-workflow';
+import { Expression, sleep, UnexpectedError } from 'n8n-workflow';
 
 import type { AbstractServer } from '@/abstract-server';
 import { N8N_VERSION, N8N_RELEASE_DATE } from '@/constants';
@@ -32,7 +24,6 @@ import { TelemetryEventRelay } from '@/events/relays/telemetry.event-relay';
 import { WorkflowFailureNotificationEventRelay } from '@/events/relays/workflow-failure-notification.event-relay';
 import { ExpressionObservabilityProvider } from '@/expression-observability/expression-observability.provider';
 import { ExternalHooks } from '@/external-hooks';
-import { License } from '@/license';
 import { CommunityPackagesConfig } from '@/modules/community-packages/community-packages.config';
 import { NodeTypes } from '@/node-types';
 import { PostHogClient } from '@/posthog';
@@ -59,8 +50,6 @@ export abstract class BaseCommand<F = never> {
 	protected server?: AbstractServer;
 
 	protected shutdownService: ShutdownService = Container.get(ShutdownService);
-
-	protected license: License;
 
 	protected readonly globalConfig = Container.get(GlobalConfig);
 
@@ -164,7 +153,7 @@ export abstract class BaseCommand<F = never> {
 		const isMultiMainEnabled =
 			this.globalConfig.executions.mode === 'queue' && this.globalConfig.multiMainSetup.enabled;
 		this.instanceSettings.setMultiMainEnabled(isMultiMainEnabled);
-		this.instanceSettings.setMultiMainLicensed(isMultiMainEnabled); // no license check here, as the start command already implements that
+		this.instanceSettings.setMultiMainLicensed(isMultiMainEnabled);
 
 		const taskRunnersConfig = this.globalConfig.taskRunners;
 
@@ -252,16 +241,6 @@ export abstract class BaseCommand<F = never> {
 		const { DatabaseManager } = await import('@/binary-data/database.manager');
 		binaryDataService.setManager('database', Container.get(DatabaseManager));
 
-		if (isS3WriteMode) {
-			const isLicensed = Container.get(License).isLicensed(LICENSE_FEATURES.BINARY_DATA_S3);
-			if (!isLicensed) {
-				this.logger.error(
-					'S3 binary data storage requires a valid license. Either set `N8N_DEFAULT_BINARY_DATA_MODE` to something else, or upgrade to a license that supports this feature.',
-				);
-				process.exit(1);
-			}
-		}
-
 		const isS3Configured = Container.get(ObjectStoreConfig).bucket.name !== '';
 
 		if (isS3Configured) {
@@ -296,32 +275,6 @@ export abstract class BaseCommand<F = never> {
 	async initExternalHooks() {
 		this.externalHooks = Container.get(ExternalHooks);
 		await this.externalHooks.init();
-	}
-
-	async initLicense(): Promise<void> {
-		this.license = Container.get(License);
-		await this.license.init();
-
-		Container.get(LicenseState).setLicenseProvider(this.license);
-
-		const { activationKey } = this.globalConfig.license;
-
-		if (activationKey) {
-			const hasCert = (await this.license.loadCertStr()).length > 0;
-
-			if (hasCert) {
-				return this.logger.debug('Skipping license activation');
-			}
-
-			try {
-				this.logger.debug('Attempting license activation');
-				await this.license.activate(activationKey);
-				this.logger.debug('License init complete');
-			} catch (e: unknown) {
-				const error = ensureError(e);
-				this.logger.error('Could not activate license', { error });
-			}
-		}
 	}
 
 	initWorkflowHistory() {

@@ -1,4 +1,3 @@
-import type { LicenseState } from '@n8n/backend-common';
 import { mockInstance } from '@n8n/backend-test-utils';
 import type { GlobalConfig } from '@n8n/config';
 import {
@@ -29,7 +28,6 @@ import type { DynamicCredentialsProxy } from '@/credentials/dynamic-credentials-
 import { EventService } from '@/events/event.service';
 import type { RelayEventMap } from '@/events/maps/relay.event-map';
 import { TelemetryEventRelay, getSemanticVersioning } from '@/events/relays/telemetry.event-relay';
-import type { License } from '@/license';
 import { OtelConfig } from '@/modules/otel/otel.config';
 import type { NodeTypes } from '@/node-types';
 import type { Telemetry } from '@/telemetry';
@@ -49,8 +47,6 @@ describe('TelemetryEventRelay', () => {
 	const telemetry = mock<Telemetry>({
 		sanitizeTelemetryProperties: jest.fn((data) => data),
 	});
-	const license = mock<License>();
-	const licenseState = mock<LicenseState>();
 	const globalConfig = mock<GlobalConfig>({
 		deployment: {
 			type: 'default',
@@ -105,11 +101,6 @@ describe('TelemetryEventRelay', () => {
 		ai: {
 			enabled: false,
 		},
-		license: {
-			tenantId: 1,
-			autoRenewalEnabled: false,
-			activationKey: '',
-		},
 		database: {
 			type: 'sqlite',
 		},
@@ -134,8 +125,6 @@ describe('TelemetryEventRelay', () => {
 		telemetryEventRelay = new TelemetryEventRelay(
 			eventService,
 			telemetry,
-			license,
-			licenseState,
 			globalConfig,
 			instanceSettings,
 			binaryDataConfig,
@@ -165,8 +154,6 @@ describe('TelemetryEventRelay', () => {
 			const telemetryEventRelay = new TelemetryEventRelay(
 				eventService,
 				telemetry,
-				license,
-				licenseState,
 				globalConfig,
 				instanceSettings,
 				binaryDataConfig,
@@ -191,8 +178,6 @@ describe('TelemetryEventRelay', () => {
 			const telemetryEventRelay = new TelemetryEventRelay(
 				eventService,
 				telemetry,
-				license,
-				licenseState,
 				globalConfig,
 				instanceSettings,
 				binaryDataConfig,

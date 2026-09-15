@@ -6,14 +6,11 @@ import type {
 } from '@n8n/api-types';
 import { InsightsDateFilterDto, ListInsightsWorkflowQueryDto } from '@n8n/api-types';
 import { AuthenticatedRequest } from '@n8n/db';
-import { Get, GlobalScope, Licensed, Query, RestController } from '@n8n/decorators';
+import { Get, GlobalScope, Query, RestController } from '@n8n/decorators';
 import { DateTime } from 'luxon';
-import { UserError } from 'n8n-workflow';
 import { z } from 'zod';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
-import { InternalServerError } from '@/errors/response-errors/internal-server.error';
 
 import { InsightsService } from './insights.service';
 
@@ -39,7 +36,6 @@ export class InsightsController {
 
 	@Get('/by-workflow')
 	@GlobalScope('insights:list')
-	@Licensed('feat:insights:viewDashboard')
 	async getInsightsByWorkflow(
 		_req: AuthenticatedRequest,
 		_res: Response,
@@ -59,7 +55,6 @@ export class InsightsController {
 
 	@Get('/by-time')
 	@GlobalScope('insights:list')
-	@Licensed('feat:insights:viewDashboard')
 	async getInsightsByTime(
 		_req: AuthenticatedRequest,
 		_res: Response,
@@ -129,9 +124,7 @@ export class InsightsController {
 		endDate: Date;
 	} {
 		this.validateQueryDates(query);
-		const { startDate, endDate } = this.getSanitizedDateFilters(query);
-		this.checkDatesFiltersAgainstLicense({ startDate, endDate });
-		return { startDate, endDate };
+		return this.getSanitizedDateFilters(query);
 	}
 
 	/**
@@ -152,17 +145,5 @@ export class InsightsController {
 		}
 
 		return { startDate: query.startDate, endDate: query.endDate ?? today };
-	}
-
-	private checkDatesFiltersAgainstLicense(dateFilters: { startDate: Date; endDate: Date }) {
-		try {
-			this.insightsService.validateDateFiltersLicense(dateFilters);
-		} catch (error: unknown) {
-			if (error instanceof UserError) {
-				throw new ForbiddenError(error.message);
-			}
-
-			throw new InternalServerError();
-		}
 	}
 }

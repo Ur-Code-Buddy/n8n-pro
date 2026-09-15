@@ -1,4 +1,4 @@
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { Service } from '@n8n/di';
 import { channelsToPolicy, WorkflowExecuteMode, WorkflowSettings } from 'n8n-workflow';
 
@@ -36,7 +36,6 @@ const MANUAL_MODES: ReadonlySet<WorkflowExecuteMode> = new Set(['manual']);
 export class ExecutionRedactionService implements ExecutionRedaction {
 	constructor(
 		private readonly logger: Logger,
-		private readonly licenseState: LicenseState,
 		private readonly workflowFinderService: WorkflowFinderService,
 		private readonly eventService: EventService,
 		private readonly fullItemRedactionStrategy: FullItemRedactionStrategy,
@@ -319,12 +318,8 @@ export class ExecutionRedactionService implements ExecutionRedaction {
 	 * is versioned: V2 stores per-channel booleans (reconstructed into the policy enum), while
 	 * V1 (older executions) stores the policy enum directly. Falls back to `workflowData.settings`
 	 * for executions captured before runtime snapshots existed, and defaults to 'none'.
-	 * Returns 'none' when the data-redaction license is not active, so that user-configured
-	 * policies are not applied without the license.
 	 */
 	private resolvePolicy(execution: RedactableExecution): WorkflowSettings.RedactionPolicy {
-		if (!this.licenseState.isDataRedactionLicensed()) return 'none';
-
 		const redaction = execution.data.executionData?.runtimeData?.redaction;
 
 		if (redaction?.version === 2) {

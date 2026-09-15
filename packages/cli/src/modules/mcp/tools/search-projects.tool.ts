@@ -1,4 +1,3 @@
-import type { LicenseState } from '@n8n/backend-common';
 import type { ProjectRepository, User } from '@n8n/db';
 import z from 'zod';
 
@@ -62,7 +61,6 @@ const outputSchema = {
 export const createSearchProjectsTool = (
 	user: User,
 	projectRepository: ProjectRepository,
-	licenseState: LicenseState,
 	telemetry: Telemetry,
 ): ToolDefinition<typeof inputSchema> => ({
 	name: 'search_projects',
@@ -94,7 +92,7 @@ export const createSearchProjectsTool = (
 			parameters: { query, type, limit },
 		};
 
-		const teamProjectsEnabled = licenseState.isTeamProjectsLicensed();
+		const teamProjectsEnabled = true;
 
 		try {
 			const effectiveLimit = Math.min(Math.max(1, limit), MAX_RESULTS);
@@ -151,11 +149,6 @@ export const createSearchProjectsTool = (
 						`Multiple projects are named "${query}". Ask the user to disambiguate (e.g. by team or owner) before creating or updating a workflow.`,
 					);
 				}
-			}
-			if (!teamProjectsEnabled) {
-				hints.push(
-					"Team projects are not enabled on this instance. New workflows should usually be created without a projectId so they land in the caller's personal project, unless the user explicitly selected one of the returned accessible projects.",
-				);
 			}
 			const hint = hints.length > 0 ? hints.join(' ') : undefined;
 

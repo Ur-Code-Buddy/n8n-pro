@@ -10,11 +10,9 @@
  *  - A blocklisted cookie (simulating logout) makes the resolver fail.
  */
 
-import { LicenseState } from '@n8n/backend-common';
 import { testDb, createWorkflow } from '@n8n/backend-test-utils';
 import { ExecutionRepository, InvalidAuthTokenRepository, type IWorkflowDb } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 import { Cipher } from 'n8n-core';
 import { toCredentialContext, toExecutionContext, type IExecutionContext } from 'n8n-workflow';
 
@@ -26,12 +24,6 @@ import { createOwner, createMember } from './shared/db/users';
 import * as utils from './shared/utils';
 import { loadNodesFromDist } from './shared/utils/node-types-data';
 import { createSimpleWorkflowFixture } from './shared/workflow-fixtures';
-
-// MFA enforcement gates inside AuthService.authenticateUserByCookie call into the
-// license state; stub it so any feature check returns "not licensed".
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(false);
-Container.set(LicenseState, licenseMock);
 
 describe('Manual execution credential context (integration)', () => {
 	let owner: Awaited<ReturnType<typeof createOwner>>;

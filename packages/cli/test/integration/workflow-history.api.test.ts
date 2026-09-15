@@ -1,5 +1,4 @@
-import { LicenseState } from '@n8n/backend-common';
-import { createWorkflow, mockInstance, testDb } from '@n8n/backend-test-utils';
+import { createWorkflow, testDb } from '@n8n/backend-test-utils';
 import type { User, WorkflowHistory } from '@n8n/db';
 import { Container } from '@n8n/di';
 import { createOwner, createUser } from '@test-integration/db/users';
@@ -22,11 +21,6 @@ const testServer = utils.setupTestServer({
 });
 
 beforeAll(async () => {
-	// Mock license to allow team projects
-	const licenseMock = mockInstance(LicenseState);
-	licenseMock.isSharingLicensed.mockReturnValue(true);
-	licenseMock.getMaxTeamProjects.mockReturnValue(-1);
-
 	owner = await createOwner();
 	authOwnerAgent = testServer.authAgentFor(owner);
 	member = await createUser();
@@ -314,21 +308,6 @@ describe('GET /workflow-history/workflow/:workflowId/version/:versionId', () => 
 });
 
 describe('PATCH /workflow-history/workflow/:workflowId/versions/:versionId', () => {
-	beforeEach(() => {
-		testServer.license.enable('feat:namedVersions');
-	});
-
-	test('should return 403 when license is disabled', async () => {
-		testServer.license.disable('feat:namedVersions');
-
-		const workflow = await createWorkflow(undefined, owner);
-		const version = await createWorkflowHistoryItem(workflow.id);
-		const response = await authOwnerAgent
-			.patch(`/workflow-history/workflow/${workflow.id}/versions/${version.versionId}`)
-			.send({ name: 'Updated Name' });
-		expect(response.status).toBe(403);
-	});
-
 	test('should return 404 on invalid workflow ID', async () => {
 		const workflow = await createWorkflow(undefined, owner);
 		const version = await createWorkflowHistoryItem(workflow.id);

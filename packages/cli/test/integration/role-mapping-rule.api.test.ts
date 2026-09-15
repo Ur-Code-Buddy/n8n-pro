@@ -49,16 +49,6 @@ describe('POST /role-mapping-rule', () => {
 		expect(response.body.message).toBe(RESPONSE_ERROR_MESSAGES.MISSING_SCOPE);
 	});
 
-	it('should return 403 when provisioning is not licensed', async () => {
-		testServer.license.disable('feat:saml');
-		testServer.license.disable('feat:oidc');
-
-		const response = await ownerAgent.post('/role-mapping-rule').send(validInstancePayload);
-
-		expect(response.status).toBe(403);
-		expect(response.body).toEqual({ message: 'Provisioning is not licensed' });
-	});
-
 	it('should return 400 when body fails Zod validation', async () => {
 		const response = await ownerAgent.post('/role-mapping-rule').send({
 			expression: '',
@@ -317,16 +307,6 @@ describe('GET /role-mapping-rule', () => {
 		expect(response.body.message).toBe(RESPONSE_ERROR_MESSAGES.MISSING_SCOPE);
 	});
 
-	it('should return 403 when provisioning is not licensed', async () => {
-		testServer.license.disable('feat:saml');
-		testServer.license.disable('feat:oidc');
-
-		const response = await ownerAgent.get('/role-mapping-rule');
-
-		expect(response.status).toBe(403);
-		expect(response.body).toEqual({ message: 'Provisioning is not licensed' });
-	});
-
 	it('should return 400 when sortBy is invalid', async () => {
 		const response = await ownerAgent.get('/role-mapping-rule').query({ sortBy: 'expression:asc' });
 
@@ -487,24 +467,6 @@ describe('PATCH /role-mapping-rule/:id', () => {
 		expect(response.body.message).toBe(RESPONSE_ERROR_MESSAGES.MISSING_SCOPE);
 	});
 
-	it('should return 403 when provisioning is not licensed', async () => {
-		const createRes = await ownerAgent
-			.post('/role-mapping-rule')
-			.send(validInstancePayload)
-			.expect(200);
-		const ruleId = createRes.body.data.id as string;
-
-		testServer.license.disable('feat:saml');
-		testServer.license.disable('feat:oidc');
-
-		const response = await ownerAgent
-			.patch(`/role-mapping-rule/${ruleId}`)
-			.send({ expression: 'true' });
-
-		expect(response.status).toBe(403);
-		expect(response.body).toEqual({ message: 'Provisioning is not licensed' });
-	});
-
 	it('should return 400 when body is empty', async () => {
 		const createRes = await ownerAgent
 			.post('/role-mapping-rule')
@@ -629,24 +591,6 @@ describe('POST /role-mapping-rule/:id/move', () => {
 
 		expect(response.status).toBe(403);
 		expect(response.body.message).toBe(RESPONSE_ERROR_MESSAGES.MISSING_SCOPE);
-	});
-
-	it('should return 403 when provisioning is not licensed', async () => {
-		const createRes = await ownerAgent
-			.post('/role-mapping-rule')
-			.send(validInstancePayload)
-			.expect(200);
-		const ruleId = createRes.body.data.id as string;
-
-		testServer.license.disable('feat:saml');
-		testServer.license.disable('feat:oidc');
-
-		const response = await ownerAgent
-			.post(`/role-mapping-rule/${ruleId}/move`)
-			.send({ targetIndex: 0 });
-
-		expect(response.status).toBe(403);
-		expect(response.body).toEqual({ message: 'Provisioning is not licensed' });
 	});
 
 	it('should return 400 when body is invalid (missing targetIndex)', async () => {
@@ -784,22 +728,6 @@ describe('DELETE /role-mapping-rule/:id', () => {
 
 		expect(response.status).toBe(403);
 		expect(response.body.message).toBe(RESPONSE_ERROR_MESSAGES.MISSING_SCOPE);
-	});
-
-	it('should return 403 when provisioning is not licensed', async () => {
-		const createRes = await ownerAgent
-			.post('/role-mapping-rule')
-			.send(validInstancePayload)
-			.expect(200);
-		const ruleId = createRes.body.data.id as string;
-
-		testServer.license.disable('feat:saml');
-		testServer.license.disable('feat:oidc');
-
-		const response = await ownerAgent.delete(`/role-mapping-rule/${ruleId}`);
-
-		expect(response.status).toBe(403);
-		expect(response.body).toEqual({ message: 'Provisioning is not licensed' });
 	});
 
 	it('should return 404 when rule id does not exist', async () => {

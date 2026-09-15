@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { LICENSE_FEATURES } from '@n8n/constants';
 import {
 	AuthRolesService,
 	DeploymentKeyRepository,
@@ -14,7 +13,7 @@ import glob from 'fast-glob';
 import { createReadStream, createWriteStream, existsSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import { BinaryDataConfig } from 'n8n-core';
-import { jsonParse, sleep, type IWorkflowExecutionDataProcess } from 'n8n-workflow';
+import { jsonParse, type IWorkflowExecutionDataProcess } from 'n8n-workflow';
 import path from 'path';
 import replaceStream from 'replacestream';
 import { pipeline } from 'stream/promises';
@@ -24,7 +23,6 @@ import { ActiveExecutions } from '@/active-executions';
 import { ActiveWorkflowManager } from '@/active-workflow-manager';
 import config from '@/config';
 import { EDITOR_UI_DIST_DIR, N8N_VERSION } from '@/constants';
-import { FeatureNotLicensedError } from '@/errors/feature-not-licensed.error';
 import { MessageEventBus } from '@/eventbus/message-event-bus/message-event-bus';
 import { EventService } from '@/events/event.service';
 import { ExecutionService } from '@/executions/execution.service';
@@ -219,11 +217,6 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 
 		this.instanceSettings.setMultiMainEnabled(isMultiMainEnabled);
 
-		/**
-		 * We temporarily license multi-main to allow it to set instance role,
-		 * which is needed by license init. Once the license is initialized,
-		 * the actual value will be used for the license check.
-		 */
 		if (isMultiMainEnabled) this.instanceSettings.setMultiMainLicensed(true);
 
 		if (this.globalConfig.executions.mode === 'regular') {
@@ -242,12 +235,6 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 		await this.instanceSettings.initialize(Container.get(DeploymentKeyRepository));
 		await Container.get(JwtService).initialize(Container.get(DeploymentKeyRepository));
 		await Container.get(BinaryDataConfig).initialize(Container.get(DeploymentKeyRepository));
-
-		await this.initLicense();
-
-		if (isMultiMainEnabled) {
-			await this.ensureMultiMainLicensed();
-		}
 
 		await this.initCommunityPackages();
 
@@ -342,50 +329,6 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 		} else {
 			this.instanceSettings.markAsLeader();
 		}
-	}
-
-	/**
-	 * Ensures the multi-main license entitlement is present. Followers retry with
-	 * exponential backoff because the leader may not have written the cert to the
-	 * database yet when the follower starts up.
-	 */
-	private async ensureMultiMainLicensed() {
-		if (this.license.isMultiMainLicensed()) return;
-
-		if (!this.instanceSettings.isLeader) {
-			const maxRetries = 5;
-			for (let attempt = 1; attempt <= maxRetries; attempt++) {
-				const delayMs = 2 ** attempt * 1000; // 2s, 4s, 8s, 16s, 32s (~62s total)
-				this.logger.warn(
-					`Instance not licensed for multi-main — retrying license check in ${delayMs / 1000}s (attempt ${attempt}/${maxRetries})`,
-				);
-				await sleep(delayMs);
-				await this.license.reload();
-				if (this.license.isMultiMainLicensed()) return;
-			}
-		}
-
-		throw new FeatureNotLicensedError(LICENSE_FEATURES.MULTIPLE_MAIN_INSTANCES, {
-			extra: {
-				instance: {
-					type: this.instanceSettings.instanceType,
-					isLeader: this.instanceSettings.isLeader,
-				},
-				config: {
-					autoRenewalEnabled: this.globalConfig.license?.autoRenewalEnabled,
-					activationKeySet: !!this.globalConfig.license?.activationKey,
-					usingEphemeralCert: !!this.globalConfig.license?.cert,
-				},
-				cert: {
-					exists: (await this.license.loadCertStr()).length > 0,
-					isValid: this.license.isCertValid(),
-					hasMultiMain: this.license.hasFeatureInCert(LICENSE_FEATURES.MULTIPLE_MAIN_INSTANCES),
-					expiresAt: this.license.getExpiryDate()?.toISOString() ?? null,
-					terminatesAt: this.license.getTerminationDate()?.toISOString() ?? null,
-					consumerId: this.license.getConsumerId(),
-				},
-			},
-		});
 	}
 
 	async run() {

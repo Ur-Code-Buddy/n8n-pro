@@ -1,6 +1,5 @@
 import { randomValidPassword, uniqueId, testDb, mockInstance } from '@n8n/backend-test-utils';
 import { InstanceSettingsLoaderConfig } from '@n8n/config';
-import { LICENSE_FEATURES } from '@n8n/constants';
 import { SettingsRepository, UserRepository, type User } from '@n8n/db';
 import { Container } from '@n8n/di';
 import { randomString } from 'n8n-workflow';
@@ -25,7 +24,6 @@ const externalHooks = mockInstance(ExternalHooks);
 
 const testServer = utils.setupTestServer({
 	endpointGroups: ['mfa', 'auth', 'me', 'passwordReset'],
-	enabledFeatures: [LICENSE_FEATURES.MFA_ENFORCEMENT],
 });
 
 beforeEach(async () => {

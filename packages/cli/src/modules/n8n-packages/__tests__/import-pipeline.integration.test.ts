@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import {
 	createActiveWorkflow,
 	createTeamProject,
@@ -23,7 +22,6 @@ import { EventService } from '@/events/event.service';
 import { affixRoleToSaveCredential, saveCredential } from '@test-integration/db/credentials';
 import { createFolder } from '@test-integration/db/folders';
 import { createMember, createOwner } from '@test-integration/db/users';
-import { LicenseMocker } from '@test-integration/license';
 import { initNodeTypes } from '@test-integration/utils';
 
 import { TarPackageWriter } from '../io/tar/tar-package-writer';
@@ -111,7 +109,6 @@ async function seedExistingWorkflow(
 	return workflow;
 }
 
-const licenseMocker = new LicenseMocker();
 const saveOwnedCredential = affixRoleToSaveCredential('credential:owner');
 
 // Reactivating an active workflow on new-version import calls into the active
@@ -124,7 +121,6 @@ beforeAll(async () => {
 	// Register node types so the reactivation path's webhook-conflict check can
 	// resolve the trigger nodes used by the seeded/imported workflows.
 	await initNodeTypes();
-	licenseMocker.mockLicenseState(Container.get(LicenseState));
 
 	const credentialTypesMock = mockInstance(CredentialTypes);
 	credentialTypesMock.recognizes.mockImplementation(

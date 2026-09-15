@@ -2,7 +2,6 @@ import type { ModuleInterface, ModuleMetadata } from '@n8n/decorators';
 import { Container } from '@n8n/di';
 import { mock } from 'vitest-mock-extended';
 
-import type { LicenseState } from '../../license-state';
 import { ModuleConfusionError } from '../errors/module-confusion.error';
 import { ModuleRegistry } from '../module-registry';
 
@@ -106,7 +105,7 @@ describe('loadModules', () => {
 		});
 
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		await moduleRegistry.loadModules([]);
 
@@ -120,7 +119,7 @@ describe('loadModules', () => {
 		});
 
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		await moduleRegistry.loadModules([]);
 
@@ -129,71 +128,29 @@ describe('loadModules', () => {
 });
 
 describe('initModules', () => {
-	it('should init module if it has no feature flag', async () => {
+	it('should init module', async () => {
 		const ModuleClass = { init: vi.fn() };
 		const moduleMetadata = mock<ModuleMetadata>({
-			getEntries: vi
-				.fn()
-				.mockReturnValue([['test-module', { licenseFlag: undefined, class: ModuleClass }]]),
+			getEntries: vi.fn().mockReturnValue([['test-module', { class: ModuleClass }]]),
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		await moduleRegistry.initModules('main');
 
 		expect(ModuleClass.init).toHaveBeenCalled();
-	});
-
-	it('should init module if it is licensed', async () => {
-		const ModuleClass = { init: vi.fn() };
-		const moduleMetadata = mock<ModuleMetadata>({
-			getEntries: vi
-				.fn()
-				.mockReturnValue([
-					['test-module', { licenseFlag: 'feat:testFeature', class: ModuleClass }],
-				]),
-		});
-		const licenseState = mock<LicenseState>({ isLicensed: vi.fn().mockReturnValue(true) });
-		Container.get = vi.fn().mockReturnValue(ModuleClass);
-
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, licenseState, mock(), mock());
-
-		await moduleRegistry.initModules('main');
-
-		expect(ModuleClass.init).toHaveBeenCalled();
-	});
-
-	it('should skip init for unlicensed module', async () => {
-		const ModuleClass = { init: vi.fn() };
-		const moduleMetadata = mock<ModuleMetadata>({
-			getEntries: vi
-				.fn()
-				.mockReturnValue([
-					['test-module', { licenseFlag: 'feat:testFeature', class: ModuleClass }],
-				]),
-		});
-		const licenseState = mock<LicenseState>({ isLicensed: vi.fn().mockReturnValue(false) });
-		Container.get = vi.fn().mockReturnValue(ModuleClass);
-
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, licenseState, mock(), mock());
-
-		await moduleRegistry.initModules('main');
-
-		expect(ModuleClass.init).not.toHaveBeenCalled();
 	});
 
 	it('should accept module without `init` method', async () => {
 		const ModuleClass = {};
 		const moduleMetadata = mock<ModuleMetadata>({
-			getEntries: vi
-				.fn()
-				.mockReturnValue([['test-module', { licenseFlag: undefined, class: ModuleClass }]]),
+			getEntries: vi.fn().mockReturnValue([['test-module', { class: ModuleClass }]]),
 		});
 
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		await moduleRegistry.initModules('main');
 
@@ -213,7 +170,7 @@ describe('initModules', () => {
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		// ACT
 		await moduleRegistry.initModules('main');
@@ -237,7 +194,7 @@ describe('initModules', () => {
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		// ACT
 		await moduleRegistry.initModules('main');
@@ -259,7 +216,7 @@ describe('initModules', () => {
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		// ACT
 		await moduleRegistry.initModules('main');
@@ -283,7 +240,7 @@ describe('initModules', () => {
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		// ACT
 		await moduleRegistry.initModules('main');
@@ -303,7 +260,7 @@ describe('initModules', () => {
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		// ACT
 		await moduleRegistry.initModules('main');
@@ -323,7 +280,7 @@ describe('initModules', () => {
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		await moduleRegistry.initModules('main');
 
@@ -339,7 +296,7 @@ describe('initModules', () => {
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
 
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		await moduleRegistry.initModules('main');
 
@@ -358,7 +315,7 @@ describe('nodeLoaders', () => {
 			getClasses: vi.fn().mockReturnValue([ModuleClass]),
 		});
 		Container.get = vi.fn().mockReturnValue(ModuleClass);
-		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock(), mock());
+		const moduleRegistry = new ModuleRegistry(moduleMetadata, mock(), mock());
 
 		await moduleRegistry.loadModules([]); // empty to skip dynamic imports
 

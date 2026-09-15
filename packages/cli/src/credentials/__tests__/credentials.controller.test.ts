@@ -2,7 +2,6 @@ jest.mock('@/generic-helpers', () => ({
 	validateEntity: jest.fn(),
 }));
 
-import type { LicenseState } from '@n8n/backend-common';
 import type {
 	AuthenticatedRequest,
 	ICredentialsDb,
@@ -29,11 +28,10 @@ import type { CredentialRequest } from '@/requests';
 const originalValidateExternalSecretsPermissions = validation.validateExternalSecretsPermissions;
 
 describe('CredentialsController', () => {
-	type ControllerEventService = ConstructorParameters<typeof CredentialsController>[9];
+	type ControllerEventService = ConstructorParameters<typeof CredentialsController>[8];
 	const eventService = mock<ControllerEventService>();
 	const sharedCredentialsRepository = mock<SharedCredentialsRepository>();
 	const credentialsFinderService = mock<CredentialsFinderService>();
-	const licenseState = mock<LicenseState>();
 
 	// Mock the credentialsRepository with a working create method
 	const credentialsRepository = mock<CredentialsRepository>();
@@ -76,7 +74,6 @@ describe('CredentialsController', () => {
 		credentialsService,
 		mock(),
 		mock(),
-		licenseState,
 		mock(),
 		mock(),
 		sharedCredentialsRepository,
@@ -254,32 +251,6 @@ describe('CredentialsController', () => {
 			]);
 		});
 
-		it('should not allow owner to set isGlobal to true if not licensed', async () => {
-			// ARRANGE
-			const ownerReq = {
-				user: { id: 'owner-id', role: GLOBAL_OWNER_ROLE },
-				params: { credentialId },
-				body: {
-					name: 'Updated Credential',
-					type: 'apiKey',
-					data: { apiKey: 'updated-key' },
-					isGlobal: true,
-				},
-			} as unknown as CredentialRequest.Update;
-
-			licenseState.isSharingLicensed.mockReturnValue(false);
-
-			credentialsFinderService.findCredentialForUser.mockResolvedValue(existingCredential);
-
-			// ACT
-			await expect(credentialsController.updateCredentials(ownerReq)).rejects.toThrowError(
-				'You are not licensed for sharing credentials',
-			);
-
-			// ASSERT
-			expect(updateSpy).not.toHaveBeenCalled();
-		});
-
 		it('should allow owner to set isGlobal to true if licensed', async () => {
 			// ARRANGE
 			const ownerReq = {
@@ -292,8 +263,6 @@ describe('CredentialsController', () => {
 					isGlobal: true,
 				},
 			} as unknown as CredentialRequest.Update;
-
-			licenseState.isSharingLicensed.mockReturnValue(true);
 
 			credentialsFinderService.findCredentialForUser.mockResolvedValue(existingCredential);
 			updateSpy.mockResolvedValue({
@@ -369,8 +338,6 @@ describe('CredentialsController', () => {
 				},
 			} as unknown as CredentialRequest.Update;
 
-			licenseState.isSharingLicensed.mockReturnValue(true);
-
 			credentialsFinderService.findCredentialForUser.mockResolvedValue(globalCredential);
 			updateSpy.mockResolvedValue({
 				...globalCredential,
@@ -404,8 +371,6 @@ describe('CredentialsController', () => {
 				},
 			} as unknown as CredentialRequest.Update;
 
-			licenseState.isSharingLicensed.mockReturnValue(true);
-
 			credentialsFinderService.findCredentialForUser.mockResolvedValue(existingCredential);
 
 			// ACT
@@ -429,8 +394,6 @@ describe('CredentialsController', () => {
 					isGlobal: false,
 				},
 			} as unknown as CredentialRequest.Update;
-
-			licenseState.isSharingLicensed.mockReturnValue(true);
 
 			credentialsFinderService.findCredentialForUser.mockResolvedValue({
 				...existingCredential,

@@ -1,5 +1,5 @@
 import { ExecutionRedactionQueryDtoSchema } from '@n8n/api-types';
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
 import type {
 	CreateExecutionPayload,
@@ -17,7 +17,7 @@ import {
 	WorkflowRepository,
 } from '@n8n/db';
 import { Service } from '@n8n/di';
-import { PROJECT_OWNER_ROLE_SLUG, type Scope } from '@n8n/permissions';
+import type { Scope } from '@n8n/permissions';
 import { stringify } from 'flatted';
 import { validate as jsonSchemaValidate } from 'jsonschema';
 import type {
@@ -50,7 +50,6 @@ import { InternalServerError } from '@/errors/response-errors/internal-server.er
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
 import { EventService } from '@/events/event.service';
 import type { IExecutionFlattedResponse } from '@/interfaces';
-import { License } from '@/license';
 import { NodeTypes } from '@/node-types';
 import { RoleService } from '@/services/role.service';
 import { WaitTracker } from '@/wait-tracker';
@@ -122,8 +121,6 @@ export class ExecutionService {
 		private readonly waitTracker: WaitTracker,
 		private readonly workflowRunner: WorkflowRunner,
 		private readonly concurrencyControl: ConcurrencyControlService,
-		private readonly license: License,
-		private readonly licenseState: LicenseState,
 		private readonly roleService: RoleService,
 		private readonly workflowSharingService: WorkflowSharingService,
 		private readonly eventService: EventService,
@@ -136,16 +133,9 @@ export class ExecutionService {
 	async buildSharingOptions(
 		scope: Scope,
 	): Promise<ExecutionSummaries.RangeQuery['sharingOptions']> {
-		if (this.licenseState.isSharingLicensed()) {
-			const projectRoles = await this.roleService.rolesWithScope('project', [scope]);
-			const workflowRoles = await this.roleService.rolesWithScope('workflow', [scope]);
-			return { scopes: [scope], projectRoles, workflowRoles };
-		}
-
-		return {
-			workflowRoles: ['workflow:owner'],
-			projectRoles: [PROJECT_OWNER_ROLE_SLUG],
-		};
+		const projectRoles = await this.roleService.rolesWithScope('project', [scope]);
+		const workflowRoles = await this.roleService.rolesWithScope('workflow', [scope]);
+		return { scopes: [scope], projectRoles, workflowRoles };
 	}
 
 	async findOne(
@@ -393,10 +383,6 @@ export class ExecutionService {
 			} catch (error) {
 				throw new InternalServerError('Parameter "filter" contained invalid JSON string.', error);
 			}
-		}
-
-		if (requestFilters?.metadata && !this.license.isAdvancedExecutionFiltersEnabled()) {
-			delete requestFilters.metadata;
 		}
 
 		await this.executionPersistence.hardDeleteBy({

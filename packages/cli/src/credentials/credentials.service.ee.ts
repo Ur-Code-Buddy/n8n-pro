@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import type { CredentialsEntity, User } from '@n8n/db';
 import { Project, SharedCredentials, SharedCredentialsRepository } from '@n8n/db';
 import { Service } from '@n8n/di';
@@ -30,7 +29,6 @@ export class EnterpriseCredentialsService {
 		private readonly roleService: RoleService,
 		private readonly externalSecretsConfig: ExternalSecretsConfig,
 		private readonly externalSecretsProviderAccessCheckService: SecretsProviderAccessCheckService,
-		private readonly licenseState: LicenseState,
 	) {}
 
 	async shareWithProjects(
@@ -197,10 +195,7 @@ export class EnterpriseCredentialsService {
 		}
 
 		// 6. validate that the destination project has access to all external secret providers
-		if (
-			this.licenseState.isExternalSecretsLicensed() &&
-			this.externalSecretsConfig.externalSecretsForProjects
-		) {
+		if (this.externalSecretsConfig.externalSecretsForProjects) {
 			const decryptedData = await this.credentialsService.decrypt(credential, true);
 			await validateAccessToReferencedSecretProviders(
 				destinationProject.id,

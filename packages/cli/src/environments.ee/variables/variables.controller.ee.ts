@@ -4,7 +4,7 @@ import {
 	VariableListRequestDto,
 } from '@n8n/api-types';
 import { AuthenticatedRequest } from '@n8n/db';
-import { Body, Delete, Get, Licensed, Patch, Post, Query, RestController } from '@n8n/decorators';
+import { Body, Delete, Get, Patch, Post, Query, RestController } from '@n8n/decorators';
 import type { Response } from 'express';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
@@ -28,7 +28,6 @@ export class VariablesController {
 	}
 
 	@Post('/')
-	@Licensed('feat:variables')
 	async createVariable(
 		req: AuthenticatedRequest,
 		_res: Response,
@@ -56,7 +55,6 @@ export class VariablesController {
 	}
 
 	@Patch('/:id')
-	@Licensed('feat:variables')
 	async updateVariable(
 		req: AuthenticatedRequest<{ id: string }>,
 		_res: Response,
@@ -76,7 +74,6 @@ export class VariablesController {
 	}
 
 	@Delete('/:id')
-	@Licensed('feat:variables')
 	async deleteVariable(req: AuthenticatedRequest<{ id: string }>) {
 		await this.variablesService.deleteForUser(req.user, req.params.id);
 

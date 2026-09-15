@@ -1,8 +1,7 @@
 import type { SecretProviderTypeResponse, SecretsProviderType } from '@n8n/api-types';
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { mockInstance, mockLogger, testDb, testModules } from '@n8n/backend-test-utils';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 import type { Response } from 'superagent';
 
 import { ExternalSecretsProviders } from '@/modules/external-secrets.ee/external-secrets-providers.ee';
@@ -21,10 +20,6 @@ import { setupTestServer } from '../shared/utils';
 const mockProvidersInstance = new MockProviders();
 mockInstance(ExternalSecretsProviders, mockProvidersInstance);
 
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(true);
-Container.set(LicenseState, licenseMock);
-
 mockInstance(ExternalSecretsConfig, {
 	externalSecretsForProjects: true,
 });
@@ -32,7 +27,6 @@ mockInstance(ExternalSecretsConfig, {
 describe('Secret Providers Types API', () => {
 	const testServer = setupTestServer({
 		endpointGroups: ['externalSecrets'],
-		enabledFeatures: ['feat:externalSecrets'],
 		modules: ['external-secrets'],
 	});
 

@@ -1,9 +1,7 @@
-import { LicenseState } from '@n8n/backend-common';
 import { mockInstance, testDb } from '@n8n/backend-test-utils';
 import { CredentialsRepository } from '@n8n/db';
 import type { ICredentialResolver } from '@n8n/decorators';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 import { Cipher } from 'n8n-core';
 
 import { EnterpriseCredentialsService } from '@/credentials/credentials.service.ee';
@@ -17,11 +15,6 @@ import { DynamicCredentialResolverRegistry } from '../services';
 // Enable dynamic credentials feature flag
 process.env.N8N_ENV_FEAT_DYNAMIC_CREDENTIALS = 'true';
 
-// Mock license
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(true);
-Container.set(LicenseState, licenseMock);
-
 // Mock DynamicCredentialsConfig before test server is created
 mockInstance(DynamicCredentialsConfig, {
 	corsOrigin: 'https://app.example.com',
@@ -31,7 +24,6 @@ mockInstance(DynamicCredentialsConfig, {
 
 const testServer = utils.setupTestServer({
 	endpointGroups: ['credentials'],
-	enabledFeatures: ['feat:externalSecrets'],
 	modules: ['dynamic-credentials'],
 });
 

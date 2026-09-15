@@ -12,7 +12,6 @@ import {
 	Get,
 	Post,
 	Body,
-	Licensed,
 	RestController,
 	RootLevelController,
 	createBodyKeyedRateLimiter,
@@ -27,13 +26,11 @@ import { z } from 'zod';
 
 import type { AuthService } from '@/auth/auth.service';
 import { ControllerRegistry } from '@/controller.registry';
-import type { License } from '@/license';
 import type { LastActiveAtService } from '@/services/last-active-at.service';
 import { RateLimitService } from '@/services/rate-limit.service';
 import type { SuperAgentTest } from '@test-integration/types';
 
 describe('ControllerRegistry', () => {
-	const license = mock<License>();
 	const authService = mock<AuthService>();
 	const globalConfig = mock<GlobalConfig>({ endpoints: { rest: 'rest' } });
 	const metadata = Container.get(ControllerRegistryMetadata);
@@ -47,7 +44,6 @@ describe('ControllerRegistry', () => {
 		app.use(json());
 		authService.createAuthMiddleware.mockImplementation(() => authMiddleware);
 		new ControllerRegistry(
-			license,
 			authService,
 			globalConfig,
 			metadata,
@@ -310,35 +306,6 @@ describe('ControllerRegistry', () => {
 			});
 			await agent.get('/rest/test/auth').expect(401);
 			expect(authMiddleware).toHaveBeenCalled();
-		});
-	});
-
-	describe('License checks', () => {
-		@RestController('/test')
-		// @ts-expect-error tsc complains about unused class
-		class TestController {
-			@Get('/with-sharing')
-			@Licensed('feat:sharing')
-			sharing() {
-				return { ok: true };
-			}
-		}
-
-		beforeEach(() => {
-			authMiddleware.mockImplementation(async (_req, _res, next) => next());
-			lastActiveAtService.middleware.mockImplementation(async (_req, _res, next) => next());
-		});
-
-		it('should disallow when feature is missing', async () => {
-			license.isLicensed.calledWith('feat:sharing').mockReturnValue(false);
-			await agent.get('/rest/test/with-sharing').expect(403);
-			expect(license.isLicensed).toHaveBeenCalled();
-		});
-
-		it('should allow when feature is available', async () => {
-			license.isLicensed.calledWith('feat:sharing').mockReturnValue(true);
-			await agent.get('/rest/test/with-sharing').expect(200);
-			expect(license.isLicensed).toHaveBeenCalled();
 		});
 	});
 

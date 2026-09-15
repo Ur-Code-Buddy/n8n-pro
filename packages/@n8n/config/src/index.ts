@@ -26,7 +26,6 @@ import { HiringBannerConfig } from './configs/hiring-banner.config';
 import { HttpRequestConfig } from './configs/http-request.config';
 import { InstanceAiConfig } from './configs/instance-ai.config';
 import { InstanceSettingsLoaderConfig } from './configs/instance-settings-loader.config';
-import { LicenseConfig } from './configs/license.config';
 import { LoggingConfig } from './configs/logging.config';
 import { MfaConfig } from './configs/mfa.config';
 import { MultiMainSetupConfig } from './configs/multi-main-setup.config';
@@ -171,9 +170,6 @@ export class GlobalConfig {
 
 	@Nested
 	generic: GenericConfig;
-
-	@Nested
-	license: LicenseConfig;
 
 	@Nested
 	security: SecurityConfig;

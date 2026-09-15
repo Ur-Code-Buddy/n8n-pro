@@ -200,7 +200,7 @@ export async function searchWorkflows(
 			triggerCount,
 			settings,
 			tags: workflowTags,
-		} = workflow as WorkflowEntity;
+		} = workflow as unknown as WorkflowEntity;
 		const scopes = ('scopes' in workflow ? (workflow.scopes as string[]) : undefined) ?? [];
 
 		return {

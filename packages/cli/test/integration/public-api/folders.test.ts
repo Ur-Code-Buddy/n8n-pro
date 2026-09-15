@@ -80,16 +80,7 @@ describe('POST /projects/:projectId/folders', () => {
 		testWithAPIKey('post', `/projects/${String('any-id')}/folders`, 'abcXYZ'),
 	);
 
-	test('should return 403 when feature is not licensed', async () => {
-		const response = await authOwnerAgent
-			.post(`/projects/${ownerPersonalProject.id}/folders`)
-			.send({ name: 'Folder' });
-
-		expect(response.statusCode).toBe(403);
-	});
-
 	test('should return 403 when API key is missing folder:create scope', async () => {
-		testServer.license.enable('feat:folders');
 		const ownerWithWrongScope = await createOwnerWithApiKey({ scopes: ['folder:list'] });
 		const projectRepository = Container.get(ProjectRepository);
 		const personalProject = await projectRepository.getPersonalProjectForUserOrFail(
@@ -198,14 +189,7 @@ describe('GET /projects/:projectId/folders', () => {
 		testWithAPIKey('get', `/projects/${String('any-id')}/folders`, 'abcXYZ'),
 	);
 
-	test('should return 403 when feature is not licensed', async () => {
-		const response = await authOwnerAgent.get(`/projects/${ownerPersonalProject.id}/folders`);
-
-		expect(response.statusCode).toBe(403);
-	});
-
 	test('should return 403 when API key is missing folder:list scope', async () => {
-		testServer.license.enable('feat:folders');
 		const ownerWithWrongScope = await createOwnerWithApiKey({ scopes: ['folder:create'] });
 		const projectRepository = Container.get(ProjectRepository);
 		const personalProject = await projectRepository.getPersonalProjectForUserOrFail(
@@ -349,18 +333,7 @@ describe('DELETE /projects/:projectId/folders/:folderId', () => {
 		),
 	);
 
-	test('should return 403 when feature is not licensed', async () => {
-		const folder = await createFolder(ownerPersonalProject, { name: 'Folder' });
-
-		const response = await authOwnerAgent.delete(
-			`/projects/${ownerPersonalProject.id}/folders/${folder.id}`,
-		);
-
-		expect(response.statusCode).toBe(403);
-	});
-
 	test('should return 403 when API key is missing folder:delete scope', async () => {
-		testServer.license.enable('feat:folders');
 		const ownerWithWrongScope = await createOwnerWithApiKey({ scopes: ['folder:list'] });
 		const projectRepository = Container.get(ProjectRepository);
 		const personalProject = await projectRepository.getPersonalProjectForUserOrFail(
@@ -537,18 +510,7 @@ describe('GET /projects/:projectId/folders/:folderId', () => {
 		testWithAPIKey('get', `/projects/${String('any-id')}/folders/${String('folder-id')}`, 'abcXYZ'),
 	);
 
-	test('should return 403 when feature is not licensed', async () => {
-		const folder = await createFolder(ownerPersonalProject, { name: 'Folder' });
-
-		const response = await authOwnerAgent.get(
-			`/projects/${ownerPersonalProject.id}/folders/${folder.id}`,
-		);
-
-		expect(response.statusCode).toBe(403);
-	});
-
 	test('should return 403 when API key is missing folder:read scope', async () => {
-		testServer.license.enable('feat:folders');
 		const ownerWithWrongScope = await createOwnerWithApiKey({ scopes: ['folder:list'] });
 		const projectRepository = Container.get(ProjectRepository);
 		const personalProject = await projectRepository.getPersonalProjectForUserOrFail(
@@ -633,18 +595,7 @@ describe('PATCH /projects/:projectId/folders/:folderId', () => {
 		),
 	);
 
-	test('should return 403 when feature is not licensed', async () => {
-		const folder = await createFolder(ownerPersonalProject, { name: 'Folder' });
-
-		const response = await authOwnerAgent
-			.patch(`/projects/${ownerPersonalProject.id}/folders/${folder.id}`)
-			.send({ name: 'Renamed' });
-
-		expect(response.statusCode).toBe(403);
-	});
-
 	test('should return 403 when API key is missing folder:update scope', async () => {
-		testServer.license.enable('feat:folders');
 		const ownerWithWrongScope = await createOwnerWithApiKey({ scopes: ['folder:list'] });
 		const projectRepository = Container.get(ProjectRepository);
 		const personalProject = await projectRepository.getPersonalProjectForUserOrFail(

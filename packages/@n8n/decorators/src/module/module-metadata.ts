@@ -1,7 +1,7 @@
 import type { InstanceType } from '@n8n/constants';
 import { Service } from '@n8n/di';
 
-import type { LicenseFlag, ModuleClass } from './module';
+import type { ModuleClass } from './module';
 
 /**
  * Internal representation of a registered module.
@@ -9,7 +9,6 @@ import type { LicenseFlag, ModuleClass } from './module';
  */
 type ModuleEntry = {
 	class: ModuleClass;
-	licenseFlag?: LicenseFlag | LicenseFlag[];
 	instanceTypes?: InstanceType[];
 };
 

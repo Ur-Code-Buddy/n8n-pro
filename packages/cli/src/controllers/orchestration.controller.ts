@@ -1,15 +1,11 @@
 import { Post, RestController, GlobalScope } from '@n8n/decorators';
 import type { AuthenticatedRequest } from '@n8n/db';
 
-import { License } from '@/license';
 import { WorkerStatusService } from '@/scaling/worker-status.service.ee';
 
 @RestController('/orchestration')
 export class OrchestrationController {
-	constructor(
-		private readonly licenseService: License,
-		private readonly workerStatusService: WorkerStatusService,
-	) {}
+	constructor(private readonly workerStatusService: WorkerStatusService) {}
 
 	/**
 	 * This endpoint does not return anything, it just triggers the message to
@@ -18,8 +14,6 @@ export class OrchestrationController {
 	@GlobalScope('orchestration:read')
 	@Post('/worker/status')
 	async getWorkersStatusAll(req: AuthenticatedRequest) {
-		if (!this.licenseService.isWorkerViewLicensed()) return;
-
 		return await this.workerStatusService.requestWorkerStatus(req.user.id);
 	}
 }

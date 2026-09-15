@@ -1,4 +1,4 @@
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { createTeamProject, mockLogger, testDb } from '@n8n/backend-test-utils';
 import type { InstanceType } from '@n8n/constants';
 import { Container } from '@n8n/di';
@@ -28,17 +28,9 @@ describe('InsightsModule', () => {
 		mockInstanceSettings = mock<InstanceSettings>();
 		Container.set(InstanceSettings, mockInstanceSettings);
 		Container.set(Logger, mockLogger());
-		Container.set(LicenseState, mock<LicenseState>());
 		Container.set(
 			InsightsService,
-			new InsightsService(
-				mock(),
-				mock(),
-				mock(),
-				Container.get(LicenseState),
-				mockInstanceSettings,
-				Container.get(Logger),
-			),
+			new InsightsService(mock(), mock(), mock(), mockInstanceSettings, Container.get(Logger)),
 		);
 		insightsModule = Container.get(InsightsModule);
 		await createTeamProject();

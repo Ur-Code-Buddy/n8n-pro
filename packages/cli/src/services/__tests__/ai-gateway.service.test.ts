@@ -1,12 +1,9 @@
 import type { GlobalConfig } from '@n8n/config';
-import type { LicenseState } from '@n8n/backend-common';
 import { mock } from 'jest-mock-extended';
 import type { InstanceSettings } from 'n8n-core';
 import { UserError } from 'n8n-workflow';
 
 import { N8N_VERSION, AI_ASSISTANT_SDK_VERSION } from '@/constants';
-import { FeatureNotLicensedError } from '@/errors/feature-not-licensed.error';
-import type { License } from '@/license';
 import { AiGatewayService } from '@/services/ai-gateway.service';
 import type { Project, User, UserRepository } from '@n8n/db';
 import type { OwnershipService } from '@/services/ownership.service';
@@ -17,8 +14,6 @@ const INSTANCE_BASE_URL = 'https://my-n8n.example.com';
 const BASE_URL = 'http://gateway.test';
 const INSTANCE_ID = 'test-instance-id';
 const USER_ID = 'user-abc';
-const LICENSE_CERT = 'cert-xyz';
-const CONSUMER_ID = 'consumer-test-uuid';
 
 const MOCK_GATEWAY_CONFIG = {
 	nodes: [
@@ -34,7 +29,6 @@ const MOCK_GATEWAY_CONFIG = {
 
 function makeService({
 	baseUrl = BASE_URL as string | null,
-	isAiGatewayLicensed = true,
 	ownershipService = mock<OwnershipService>(),
 	userRepository = mock<UserRepository>({ findOneBy: jest.fn().mockResolvedValue(null) }),
 	urlService = mock<UrlService>({
@@ -44,18 +38,9 @@ function makeService({
 	const globalConfig = {
 		aiAssistant: { baseUrl: baseUrl ?? undefined },
 	} as unknown as GlobalConfig;
-	const license = mock<License>({
-		loadCertStr: jest.fn().mockResolvedValue(LICENSE_CERT),
-		getConsumerId: jest.fn().mockReturnValue(CONSUMER_ID),
-	});
-	const licenseState = mock<LicenseState>({
-		isAiGatewayLicensed: jest.fn().mockReturnValue(isAiGatewayLicensed),
-	});
 	const instanceSettings = mock<InstanceSettings>({ instanceId: INSTANCE_ID });
 	return new AiGatewayService(
 		globalConfig,
-		license,
-		licenseState,
 		instanceSettings,
 		ownershipService,
 		userRepository,
@@ -137,13 +122,6 @@ describe('AiGatewayService', () => {
 	});
 
 	describe('getSyntheticCredential()', () => {
-		it('throws FeatureNotLicensedError when not licensed and dev mode is off', async () => {
-			const service = makeService({ isAiGatewayLicensed: false });
-			await expect(
-				service.getSyntheticCredential({ credentialType: 'googlePalmApi', userId: USER_ID }),
-			).rejects.toThrow(FeatureNotLicensedError);
-		});
-
 		it('throws UserError when baseUrl is not configured', async () => {
 			const service = makeService({ baseUrl: null });
 			await expect(
@@ -191,12 +169,12 @@ describe('AiGatewayService', () => {
 					headers: {
 						'Content-Type': 'application/json',
 						'x-user-id': USER_ID,
-						'x-consumer-id': CONSUMER_ID,
+						'x-consumer-id': 'unknown',
 						'x-sdk-version': AI_ASSISTANT_SDK_VERSION,
 						'x-n8n-version': N8N_VERSION,
 						'x-instance-id': INSTANCE_ID,
 					},
-					body: JSON.stringify({ licenseCert: LICENSE_CERT, instanceUrl: INSTANCE_BASE_URL }),
+					body: JSON.stringify({ licenseCert: '', instanceUrl: INSTANCE_BASE_URL }),
 				}),
 			);
 		});
@@ -229,7 +207,7 @@ describe('AiGatewayService', () => {
 				`${BASE_URL}/v1/gateway/credentials`,
 				expect.objectContaining({
 					body: JSON.stringify({
-						licenseCert: LICENSE_CERT,
+						licenseCert: '',
 						userEmail: 'alice@example.com',
 						userName: 'Alice Smith',
 						instanceUrl: INSTANCE_BASE_URL,
@@ -263,7 +241,7 @@ describe('AiGatewayService', () => {
 			await service.getSyntheticCredential({ credentialType: 'googlePalmApi', userId: USER_ID });
 
 			const body = JSON.parse(fetchMock.mock.calls[1][1].body as string);
-			expect(body).toEqual({ licenseCert: LICENSE_CERT, instanceUrl: INSTANCE_BASE_URL });
+			expect(body).toEqual({ licenseCert: '', instanceUrl: INSTANCE_BASE_URL });
 		});
 
 		it('caches config and token — second call makes no additional fetches', async () => {
@@ -565,7 +543,7 @@ describe('AiGatewayService', () => {
 				`${BASE_URL}/v1/gateway/credentials`,
 				expect.objectContaining({
 					method: 'POST',
-					body: JSON.stringify({ licenseCert: LICENSE_CERT, instanceUrl: INSTANCE_BASE_URL }),
+					body: JSON.stringify({ licenseCert: '', instanceUrl: INSTANCE_BASE_URL }),
 				}),
 			);
 			expect(fetchMock).toHaveBeenNthCalledWith(2, `${BASE_URL}/v1/gateway/wallet`, {

@@ -1,6 +1,5 @@
 import type { Logger } from '@n8n/backend-common';
 import { mockInstance, randomName } from '@n8n/backend-test-utils';
-import { LICENSE_FEATURES } from '@n8n/constants';
 import axios from 'axios';
 import { mocked } from 'jest-mock';
 import { mock } from 'jest-mock-extended';
@@ -11,8 +10,6 @@ import { access, constants, mkdir, readFile, rm, writeFile } from 'node:fs/promi
 import path, { join } from 'node:path';
 
 import { NODE_PACKAGE_PREFIX, NPM_PACKAGE_STATUS_GOOD } from '@/constants';
-import { FeatureNotLicensedError } from '@/errors/feature-not-licensed.error';
-import type { License } from '@/license';
 import type { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import type { Publisher } from '@/scaling/pubsub/publisher.service';
 import { COMMUNITY_NODE_VERSION, COMMUNITY_PACKAGE_VERSION } from '@test-integration/constants';
@@ -52,7 +49,6 @@ const execMock: typeof execFile = ((...args) => {
 mocked(execFile).mockImplementation(execMock);
 
 describe('CommunityPackagesService', () => {
-	const license = mock<License>();
 	const config = mock<CommunityPackagesConfig>({
 		reinstallMissing: false,
 		registry: 'some.random.host',
@@ -75,7 +71,6 @@ describe('CommunityPackagesService', () => {
 		installedPackageRepository,
 		loadNodesAndCredentials,
 		publisher,
-		license,
 		config,
 	);
 
@@ -416,9 +411,6 @@ describe('CommunityPackagesService', () => {
 		});
 
 		test('should call `exec` with the correct sequence of commands, handle file ops, and interact with services', async () => {
-			// ARRANGE
-			license.isCustomNpmRegistryEnabled.mockReturnValue(true);
-
 			// ACT
 			await communityPackagesService.updatePackage(
 				installedPackageForUpdateTest.packageName,
@@ -485,19 +477,6 @@ describe('CommunityPackagesService', () => {
 				command: 'community-package-update',
 				payload: { packageName: PACKAGE_NAME, packageVersion: 'latest' },
 			});
-		});
-
-		test('should throw when not licensed for custom registry if custom registry is different from default', async () => {
-			// ARRANGE
-			license.isCustomNpmRegistryEnabled.mockReturnValue(false);
-
-			// ACT & ASSERT
-			const promise = communityPackagesService.updatePackage(
-				installedPackageForUpdateTest.packageName,
-				installedPackageForUpdateTest,
-			);
-			await expect(promise).rejects.toThrow(FeatureNotLicensedError);
-			await expect(promise).rejects.toThrow(LICENSE_FEATURES.COMMUNITY_NODES_CUSTOM_REGISTRY);
 		});
 	});
 

@@ -1,11 +1,8 @@
 import type { CredentialPayload } from '@n8n/backend-test-utils';
-import type { BooleanLicenseFeature, NumericLicenseFeature } from '@n8n/constants';
 import type { CredentialsEntity, Project, User, ICredentialsDb } from '@n8n/db';
 import type { Application } from 'express';
 import type { Server } from 'http';
 import type TestAgent from 'supertest/lib/agent';
-
-import type { LicenseMocker } from './license';
 
 type EndpointGroup =
 	| 'health'
@@ -24,7 +21,6 @@ type EndpointGroup =
 	| 'saml'
 	| 'sourceControl'
 	| 'eventBus'
-	| 'license'
 	| 'variables'
 	| 'annotationTags'
 	| 'tags'
@@ -69,12 +65,31 @@ type ModuleName =
 
 export interface SetupProps {
 	endpointGroups?: EndpointGroup[];
-	enabledFeatures?: BooleanLicenseFeature[];
-	quotas?: Partial<{ [K in NumericLicenseFeature]: number }>;
+	/**
+	 * @deprecated No-op. All features are always enabled now that license
+	 * gating has been removed; this is kept only so the ~40 pre-existing call
+	 * sites that still pass it don't need individual edits.
+	 */
+	enabledFeatures?: string[];
+	/** @deprecated No-op, see {@link enabledFeatures}. */
+	quotas?: Partial<Record<string, number>>;
 	modules?: ModuleName[];
 }
 
 export type SuperAgentTest = TestAgent;
+
+/**
+ * No-op stand-in for the old `LicenseMocker`. Every feature is unconditionally
+ * enabled now, so these methods do nothing; they exist only so pre-existing
+ * `testServer.license.enable(...)`/`.disable(...)` call sites keep compiling.
+ */
+export interface NoOpLicenseMocker {
+	enable(feature: string): void;
+	disable(feature: string): void;
+	setQuota(key: string, value: number): void;
+	setDefaults(opts: { features?: string[]; quotas?: Partial<Record<string, number>> }): void;
+	reset(): void;
+}
 
 export interface TestServer {
 	app: Application;
@@ -85,7 +100,8 @@ export interface TestServer {
 	publicApiAgentWithoutApiKey: () => TestAgent;
 	authlessAgent: TestAgent;
 	restlessAgent: TestAgent;
-	license: LicenseMocker;
+	/** @deprecated No-op, see {@link NoOpLicenseMocker}. */
+	license: NoOpLicenseMocker;
 }
 
 export type SaveCredentialFunction = (

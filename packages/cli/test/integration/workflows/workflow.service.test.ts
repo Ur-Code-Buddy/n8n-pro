@@ -88,7 +88,6 @@ beforeAll(async () => {
 		workflowValidationService,
 		nodeTypes,
 		webhookServiceMock,
-		mock(), // licenseState
 		Container.get(ProjectRepository), // projectRepository
 		mock(), // redactionEnforcementService
 	);

@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import { mockInstance, getPersonalProject, testDb } from '@n8n/backend-test-utils';
 import {
 	GLOBAL_OWNER_ROLE,
@@ -7,7 +6,6 @@ import {
 	WorkflowEntity,
 } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 import { InstanceSettings } from 'n8n-core';
 import type { INode } from 'n8n-workflow';
 import nock from 'nock';
@@ -24,10 +22,6 @@ import * as utils from '../shared/utils';
 
 mockInstance(Telemetry);
 
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(true);
-Container.set(LicenseState, licenseMock);
-
 process.env.N8N_ENV_FEAT_DYNAMIC_CREDENTIALS = 'true';
 
 mockInstance(DynamicCredentialsConfig, {
@@ -38,7 +32,6 @@ mockInstance(DynamicCredentialsConfig, {
 
 const testServer = utils.setupTestServer({
 	endpointGroups: ['credentials'],
-	enabledFeatures: ['feat:externalSecrets'],
 	modules: ['dynamic-credentials'],
 });
 

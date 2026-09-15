@@ -1,4 +1,3 @@
-import type { LicenseState } from '@n8n/backend-common';
 import {
 	CredentialsEntity,
 	type SecretsProviderConnectionRepository,
@@ -41,7 +40,6 @@ describe('CredentialsHelper', () => {
 	const mockNodesAndCredentials = mock<LoadNodesAndCredentials>();
 	const credentialsRepository = mock<CredentialsRepository>();
 	const secretsProviderRepository = mock<SecretsProviderConnectionRepository>();
-	const licenseState = mock<LicenseState>();
 	const externalSecretsConfig = mock<ExternalSecretsConfig>();
 	const mockLogger = mock<any>();
 	// Use a real instance of DynamicCredentialsProxy so setResolverProvider works
@@ -62,7 +60,6 @@ describe('CredentialsHelper', () => {
 		credentialsRepository,
 		dynamicCredentialProxy,
 		secretsProviderRepository,
-		licenseState,
 		externalSecretsConfig,
 		mock<AiGatewayService>(),
 	);
@@ -664,7 +661,6 @@ describe('CredentialsHelper', () => {
 				credentialsRepository,
 				dynamicCredentialProxy,
 				secretsProviderRepository,
-				licenseState,
 				externalSecretsConfig,
 				aiGatewayService,
 			);
@@ -709,7 +705,6 @@ describe('CredentialsHelper', () => {
 				credentialsRepository,
 				dynamicCredentialProxy,
 				secretsProviderRepository,
-				licenseState,
 				externalSecretsConfig,
 				aiGatewayService,
 			);
@@ -756,7 +751,6 @@ describe('CredentialsHelper', () => {
 				credentialsRepository,
 				dynamicCredentialProxy,
 				secretsProviderRepository,
-				licenseState,
 				externalSecretsConfig,
 				aiGatewayService,
 			);
@@ -797,7 +791,7 @@ describe('CredentialsHelper', () => {
 		});
 	});
 
-	describe('getDecrypted - externalSecrets license check', () => {
+	describe('getDecrypted - externalSecretsForProjects config', () => {
 		const mockAdditionalDataForLicense = mock<IWorkflowExecuteAdditionalData>();
 
 		const nodeCredentials: INodeCredentialsDetails = {
@@ -821,8 +815,7 @@ describe('CredentialsHelper', () => {
 			externalSecretsConfig.externalSecretsForProjects = false;
 		});
 
-		test('should set externalSecretProviderKeysAccessibleByCredential on additionalData when externalSecrets is licensed', async () => {
-			licenseState.isExternalSecretsLicensed.mockReturnValue(true);
+		test('should set externalSecretProviderKeysAccessibleByCredential on additionalData when externalSecretsForProjects is enabled', async () => {
 			externalSecretsConfig.externalSecretsForProjects = true;
 			secretsProviderRepository.findAllAccessibleProviderKeysByCredentialId.mockResolvedValue([
 				'secret_key_1',
@@ -844,8 +837,7 @@ describe('CredentialsHelper', () => {
 			);
 		});
 
-		test('should not query secretsProviderRepository or set externalSecretProviderKeysAccessibleByCredential when externalSecrets is not licensed', async () => {
-			licenseState.isExternalSecretsLicensed.mockReturnValue(false);
+		test('should not query secretsProviderRepository or set externalSecretProviderKeysAccessibleByCredential when externalSecretsForProjects is disabled', async () => {
 			externalSecretsConfig.externalSecretsForProjects = false;
 
 			await credentialsHelper.getDecrypted(
@@ -988,7 +980,6 @@ describe('CredentialsHelper', () => {
 				credentialsRepository,
 				proxyWithoutProvider,
 				secretsProviderRepository,
-				licenseState,
 				externalSecretsConfig,
 				mock<AiGatewayService>(),
 			);
@@ -1248,7 +1239,6 @@ describe('CredentialsHelper', () => {
 				mock<CredentialsRepository>(),
 				mock<DynamicCredentialsProxy>(),
 				mock<SecretsProviderConnectionRepository>(),
-				mock<LicenseState>(),
 				mock<ExternalSecretsConfig>(),
 				mock<AiGatewayService>(),
 			);

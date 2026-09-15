@@ -4,7 +4,6 @@ import { Container } from '@n8n/di';
 
 @BackendModule({
 	name: 'source-control',
-	licenseFlag: 'feat:sourceControl',
 	instanceTypes: ['main'],
 })
 export class SourceControlModule implements ModuleInterface {

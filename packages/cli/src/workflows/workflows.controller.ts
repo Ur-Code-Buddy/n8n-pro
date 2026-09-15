@@ -24,7 +24,6 @@ import {
 	Body,
 	Delete,
 	Get,
-	Licensed,
 	Param,
 	Patch,
 	Post,
@@ -54,7 +53,6 @@ import { NotFoundError } from '@/errors/response-errors/not-found.error';
 import { EventService } from '@/events/event.service';
 import { ExecutionService } from '@/executions/execution.service';
 import type { IWorkflowResponse } from '@/interfaces';
-import { License } from '@/license';
 import { listQueryMiddleware } from '@/middlewares';
 import { userHasScopes } from '@/permissions.ee/check-access';
 import { AuthService } from '@/auth/auth.service';
@@ -76,7 +74,6 @@ export class WorkflowsController {
 		private readonly workflowService: WorkflowService,
 		private readonly workflowCreationService: WorkflowCreationService,
 		private readonly workflowExecutionService: WorkflowExecutionService,
-		private readonly license: License,
 		private readonly mailer: UserManagementMailer,
 		private readonly projectRepository: ProjectRepository,
 		private readonly projectService: ProjectService,
@@ -206,51 +203,17 @@ export class WorkflowsController {
 	async getWorkflow(req: WorkflowRequest.Get) {
 		const { workflowId } = req.params;
 
-		if (this.license.isSharingEnabled()) {
-			const relations: FindOptionsRelations<WorkflowEntity> = {
-				shared: {
-					project: {
-						projectRelations: true,
-					},
+		const relations: FindOptionsRelations<WorkflowEntity> = {
+			shared: {
+				project: {
+					projectRelations: true,
 				},
-			};
+			},
+		};
 
-			if (!this.globalConfig.tags.disabled) {
-				relations.tags = true;
-			}
-
-			const workflow = await this.workflowFinderService.findWorkflowForUser(
-				workflowId,
-				req.user,
-				['workflow:read'],
-				{
-					includeTags: !this.globalConfig.tags.disabled,
-					includeParentFolder: true,
-					includeActiveVersion: true,
-				},
-			);
-
-			if (!workflow) {
-				throw new NotFoundError(`Workflow with ID "${workflowId}" does not exist`);
-			}
-
-			const enterpriseWorkflowService = this.enterpriseWorkflowService;
-
-			const workflowWithMetaData = enterpriseWorkflowService.addOwnerAndSharings(workflow);
-
-			await enterpriseWorkflowService.addCredentialsToWorkflow(workflowWithMetaData, req.user);
-
-			// @ts-expect-error: This is added as part of addOwnerAndSharings but
-			// shouldn't be returned to the frontend
-			delete workflowWithMetaData.shared;
-
-			const scopes = await this.workflowService.getWorkflowScopes(req.user, workflowId);
-			const checksum = await calculateWorkflowChecksum(workflow);
-
-			return { ...workflowWithMetaData, scopes, checksum };
+		if (!this.globalConfig.tags.disabled) {
+			relations.tags = true;
 		}
-
-		// sharing disabled
 
 		const workflow = await this.workflowFinderService.findWorkflowForUser(
 			workflowId,
@@ -264,19 +227,23 @@ export class WorkflowsController {
 		);
 
 		if (!workflow) {
-			this.logger.warn('User attempted to access a workflow without permissions', {
-				workflowId,
-				userId: req.user.id,
-			});
-			throw new NotFoundError(
-				'Could not load the workflow - you can only access workflows owned by you',
-			);
+			throw new NotFoundError(`Workflow with ID "${workflowId}" does not exist`);
 		}
+
+		const enterpriseWorkflowService = this.enterpriseWorkflowService;
+
+		const workflowWithMetaData = enterpriseWorkflowService.addOwnerAndSharings(workflow);
+
+		await enterpriseWorkflowService.addCredentialsToWorkflow(workflowWithMetaData, req.user);
+
+		// @ts-expect-error: This is added as part of addOwnerAndSharings but
+		// shouldn't be returned to the frontend
+		delete workflowWithMetaData.shared;
 
 		const scopes = await this.workflowService.getWorkflowScopes(req.user, workflowId);
 		const checksum = await calculateWorkflowChecksum(workflow);
 
-		return { ...workflow, scopes, checksum };
+		return { ...workflowWithMetaData, scopes, checksum };
 	}
 
 	/**
@@ -321,11 +288,10 @@ export class WorkflowsController {
 		Object.assign(updateData, rest);
 
 		// Credential tamper protection is enforced centrally in WorkflowService.update
-		const isSharingEnabled = this.license.isSharingEnabled();
 		const updatedWorkflow = await this.workflowService.update(req.user, updateData, workflowId, {
 			tagIds: tags,
 			parentFolderId,
-			forceSave: isSharingEnabled ? forceSave : true,
+			forceSave,
 			expectedChecksum,
 			aiBuilderAssisted,
 			autosaved,
@@ -547,7 +513,6 @@ export class WorkflowsController {
 		return result;
 	}
 
-	@Licensed('feat:sharing')
 	@Put('/:workflowId/share')
 	async share(req: WorkflowRequest.Share) {
 		const parseResult = ShareWorkflowBodyDto.safeParse(req.body);

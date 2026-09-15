@@ -1,10 +1,9 @@
 import { type InsightsSummary } from '@n8n/api-types';
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { OnLeaderStepdown, OnLeaderTakeover } from '@n8n/decorators';
 import { Container, Service } from '@n8n/di';
 import { DateTime } from 'luxon';
 import { InstanceSettings } from 'n8n-core';
-import { UserError } from 'n8n-workflow';
 
 import type { PeriodUnit, TypeUnit } from './database/entities/insights-shared';
 import { NumberToType, TypeToNumber } from './database/entities/insights-shared';
@@ -18,7 +17,6 @@ export class InsightsService {
 		private readonly insightsByPeriodRepository: InsightsByPeriodRepository,
 		private readonly compactionService: InsightsCompactionService,
 		private readonly pruningService: InsightsPruningService,
-		private readonly licenseState: LicenseState,
 		private readonly instanceSettings: InstanceSettings,
 		private readonly logger: Logger,
 	) {
@@ -234,39 +232,6 @@ export class InsightsService {
 				values,
 			};
 		});
-	}
-
-	/**
-	 * Checks if the selected date range is compliant with the license
-	 *
-	 * - If the granularity is 'hour', checks if the license allows hourly data access
-	 * - Checks if the start date is within the allowed history range
-	 *
-	 * @throws {UserError} if the license does not allow the selected date range
-	 */
-	validateDateFiltersLicense({ startDate, endDate }: { startDate: Date; endDate: Date }) {
-		// we use `startOf('day')` because the license limits are based on full days
-		const today = DateTime.now().startOf('day');
-		const startDateStartOfDay = DateTime.fromJSDate(startDate).startOf('day');
-		const daysToStartDate = today.diff(startDateStartOfDay, 'days').days;
-
-		const granularity = this.getDateFiltersGranularity({ startDate, endDate });
-
-		const maxHistoryInDays =
-			this.licenseState.getInsightsMaxHistory() === -1
-				? Number.MAX_SAFE_INTEGER
-				: this.licenseState.getInsightsMaxHistory();
-		const isHourlyDateLicensed = this.licenseState.isInsightsHourlyDataLicensed();
-
-		if (granularity === 'hour' && !isHourlyDateLicensed) {
-			throw new UserError('Hourly data is not available with your current license');
-		}
-
-		if (maxHistoryInDays < daysToStartDate) {
-			throw new UserError(
-				'The selected date range exceeds the maximum history allowed by your license',
-			);
-		}
 	}
 
 	private getDateFiltersGranularity({

@@ -1,4 +1,3 @@
-import type { BooleanLicenseFeature } from '@n8n/constants';
 import type { Constructable } from '@n8n/di';
 import type { Scope } from '@n8n/permissions';
 import type { RequestHandler, Router } from 'express';
@@ -41,7 +40,6 @@ export interface RouteMetadata {
 	ipRateLimit?: boolean | RateLimiterLimits;
 	/** Whether to apply keyed rate limiting to the route */
 	keyedRateLimit?: KeyedRateLimiterConfig;
-	licenseFeature?: BooleanLicenseFeature;
 	accessScope?: AccessScope;
 	args: Arg[];
 	router?: Router;
@@ -63,7 +61,6 @@ export type StaticRouterMetadata = {
 		| 'middlewares'
 		| 'ipRateLimit'
 		| 'keyedRateLimit'
-		| 'licenseFeature'
 		| 'accessScope'
 	>
 >;

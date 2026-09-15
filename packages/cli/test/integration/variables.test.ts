@@ -19,7 +19,6 @@ let authMemberAgent: SuperAgentTest;
 let project: Project;
 
 const testServer = utils.setupTestServer({ endpointGroups: ['variables'] });
-const license = testServer.license;
 
 beforeAll(async () => {
 	const owner = await createOwner();
@@ -29,13 +28,6 @@ beforeAll(async () => {
 
 	project = await createTeamProject();
 	await linkUserToProject(member, project, 'project:editor');
-
-	license.setDefaults({
-		features: ['feat:variables'],
-		// quota: {
-		// 	'quota:maxVariables': -1,
-		// },
-	});
 });
 
 beforeEach(async () => {
@@ -57,9 +49,14 @@ describe('GET /variables', () => {
 
 	test('should return an empty array if there is nothing in the cache', async () => {
 		const cacheService = Container.get(CacheService);
-		const spy = jest.spyOn(cacheService, 'get').mockResolvedValueOnce(undefined);
+		const original = cacheService.get.bind(cacheService);
+		const spy = jest
+			.spyOn(cacheService, 'get')
+			.mockImplementation(async (key, ...rest) =>
+				key === 'variables' ? undefined : await original(key, ...rest),
+			);
 		const response = await authOwnerAgent.get('/variables');
-		expect(spy).toHaveBeenCalledTimes(1);
+		expect(spy).toHaveBeenCalledWith('variables', expect.anything());
 		expect(response.statusCode).toBe(200);
 		expect(response.body.data.length).toBe(0);
 	});
@@ -159,17 +156,6 @@ describe('POST /variables', () => {
 		expect(byKey).toBeNull();
 	});
 
-	test("should not create a new variable and return it if the instance doesn't have a license", async () => {
-		license.disable('feat:variables');
-		const response = await authOwnerAgent.post('/variables').send(toCreate);
-		expect(response.statusCode).toBe(403);
-		expect(response.body.data?.key).not.toBe(toCreate.key);
-		expect(response.body.data?.value).not.toBe(toCreate.value);
-
-		const byKey = await getVariableByKey(toCreate.key);
-		expect(byKey).toBeNull();
-	});
-
 	test('should fail to create a new variable and if one with the same key exists', async () => {
 		await createVariable(toCreate.key, toCreate.value);
 		const response = await authOwnerAgent.post('/variables').send(toCreate);
@@ -178,23 +164,7 @@ describe('POST /variables', () => {
 		expect(response.body.data?.value).not.toBe(toCreate.value);
 	});
 
-	test('should not fail if variable limit not reached', async () => {
-		license.setQuota('quota:maxVariables', 5);
-		let i = 1;
-		let toCreate = generatePayload(i);
-		while (i < 3) {
-			await createVariable(toCreate.key, toCreate.value);
-			i++;
-			toCreate = generatePayload(i);
-		}
-		const response = await authOwnerAgent.post('/variables').send(toCreate);
-		expect(response.statusCode).toBe(200);
-		expect(response.body.data?.key).toBe(toCreate.key);
-		expect(response.body.data?.value).toBe(toCreate.value);
-	});
-
-	test('should fail if variable limit reached', async () => {
-		license.setQuota('quota:maxVariables', 5);
+	test('should not fail regardless of how many variables already exist', async () => {
 		let i = 1;
 		let toCreate = generatePayload(i);
 		while (i < 6) {
@@ -203,9 +173,9 @@ describe('POST /variables', () => {
 			toCreate = generatePayload(i);
 		}
 		const response = await authOwnerAgent.post('/variables').send(toCreate);
-		expect(response.statusCode).toBe(400);
-		expect(response.body.data?.key).not.toBe(toCreate.key);
-		expect(response.body.data?.value).not.toBe(toCreate.value);
+		expect(response.statusCode).toBe(200);
+		expect(response.body.data?.key).toBe(toCreate.key);
+		expect(response.body.data?.value).toBe(toCreate.value);
 	});
 
 	test('should fail if key too long', async () => {
@@ -325,17 +295,6 @@ describe('PATCH /variables/:id', () => {
 		expect(byId!.value).toBe(var1.value);
 	});
 
-	test("should not modify a variable if the instance doesn't have a license", async () => {
-		const variable = await createVariable('test1', 'value1');
-		license.disable('feat:variables');
-		const response = await authOwnerAgent.patch(`/variables/${variable.id}`).send(toModify);
-		expect(response.statusCode).toBe(403);
-
-		const byId = await getVariableById(variable.id);
-		expect(byId).not.toBeNull();
-		expect(byId!.key).toBe('test1');
-		expect(byId!.value).toBe('value1');
-	});
 });
 
 // ----------------------------------------
@@ -376,13 +335,4 @@ describe('DELETE /variables/:id', () => {
 		expect(getResponse.body.data.length).toBe(3);
 	});
 
-	test("should not delete a variable if the instance doesn't have a license", async () => {
-		const variable = await createVariable('test1', 'value1');
-		license.disable('feat:variables');
-		const response = await authOwnerAgent.delete(`/variables/${variable.id}`);
-		expect(response.statusCode).toBe(403);
-
-		const byId = await getVariableById(variable.id);
-		expect(byId).not.toBeNull();
-	});
 });

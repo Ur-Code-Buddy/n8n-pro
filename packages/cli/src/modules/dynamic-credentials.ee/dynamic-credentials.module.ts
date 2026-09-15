@@ -1,4 +1,3 @@
-import { LICENSE_FEATURES } from '@n8n/constants';
 import type { ModuleInterface } from '@n8n/decorators';
 import { BackendModule, OnShutdown } from '@n8n/decorators';
 import { Container } from '@n8n/di';
@@ -7,7 +6,7 @@ function isFeatureFlagEnabled(): boolean {
 	return process.env.N8N_ENV_FEAT_DYNAMIC_CREDENTIALS === 'true';
 }
 
-@BackendModule({ name: 'dynamic-credentials', licenseFlag: LICENSE_FEATURES.DYNAMIC_CREDENTIALS })
+@BackendModule({ name: 'dynamic-credentials' })
 export class DynamicCredentialsModule implements ModuleInterface {
 	async init() {
 		if (!isFeatureFlagEnabled()) {

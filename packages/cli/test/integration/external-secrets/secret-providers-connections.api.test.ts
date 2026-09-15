@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import { createTeamProject, mockInstance, testDb } from '@n8n/backend-test-utils';
 import type { Project } from '@n8n/db';
 import {
@@ -7,7 +6,6 @@ import {
 	SecretsProviderConnectionRepository,
 } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 import { Cipher } from 'n8n-core';
 
 import { ExternalSecretsConfig } from '@/modules/external-secrets.ee/external-secrets.config';
@@ -64,10 +62,6 @@ mockProvidersInstance.setProviders({
 });
 mockInstance(ExternalSecretsProviders, mockProvidersInstance);
 
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(true);
-Container.set(LicenseState, licenseMock);
-
 mockInstance(ExternalSecretsConfig, {
 	externalSecretsForProjects: true,
 });
@@ -75,7 +69,6 @@ mockInstance(ExternalSecretsConfig, {
 describe('Secret Providers Connections API', () => {
 	const testServer = utils.setupTestServer({
 		endpointGroups: ['externalSecrets'],
-		enabledFeatures: ['feat:externalSecrets'],
 		modules: ['external-secrets'],
 	});
 

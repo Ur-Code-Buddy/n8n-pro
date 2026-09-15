@@ -13,7 +13,6 @@ import { AuthService } from '@/auth/auth.service';
 import config from '@/config';
 import { EventService } from '@/events/event.service';
 import { LdapService } from '@/modules/ldap.ee/ldap.service.ee';
-import { License } from '@/license';
 import { MfaService } from '@/mfa/mfa.service';
 import { PostHogClient } from '@/posthog';
 import { UserService } from '@/services/user.service';
@@ -25,8 +24,6 @@ import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import type { AuthlessRequest } from '@/requests';
 import * as ssoHelpers from '@/sso.ee/sso-helpers';
 import { ResolveSignupTokenQueryDto } from '@n8n/api-types';
-import { RESPONSE_ERROR_MESSAGES } from '@/constants';
-import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 
 describe('AuthController', () => {
 	mockInstance(Logger);
@@ -36,7 +33,6 @@ describe('AuthController', () => {
 	mockInstance(UserService);
 	mockInstance(UserRepository);
 	mockInstance(PostHogClient);
-	mockInstance(License);
 	const ldapService = mockInstance(LdapService);
 	const authHandlerRegistry = mockInstance(AuthHandlerRegistry);
 	const emailAuthHandler = mock<EmailAuthHandler>();
@@ -226,7 +222,6 @@ describe('AuthController', () => {
 		const mfaService: MfaService = mockInstance(MfaService);
 		const authService: AuthService = mockInstance(AuthService);
 		const userService: UserService = mockInstance(UserService);
-		const license: License = mockInstance(License);
 		const userRepository: UserRepository = mockInstance(UserRepository);
 		const postHog: PostHogClient = mockInstance(PostHogClient);
 		const eventService: EventService = mockInstance(EventService);
@@ -240,7 +235,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,
@@ -263,43 +257,6 @@ describe('AuthController', () => {
 			);
 		});
 
-		it('throws a ForbiddenError if the users quota is reached', async () => {
-			jest.spyOn(ssoHelpers, 'isSsoCurrentAuthenticationMethod').mockReturnValue(false);
-			const id = uuidv4();
-			const token = 'valid-jwt-token';
-
-			const authController = new AuthController(
-				logger,
-				authService,
-				mfaService,
-				userService,
-				license,
-				userRepository,
-				eventService,
-				authHandlerRegistry,
-				postHog,
-			);
-
-			const payload = new ResolveSignupTokenQueryDto({
-				token,
-			});
-
-			const req = mock<AuthlessRequest>({
-				body: payload,
-			});
-			const res = mock<Response>();
-
-			jest.spyOn(userService, 'getInvitationIdsFromPayload').mockResolvedValue({
-				inviterId: id,
-				inviteeId: id,
-			});
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(false);
-
-			const promise = authController.resolveSignupToken(req, res, payload);
-			await expect(promise).rejects.toThrow(ForbiddenError);
-			await expect(promise).rejects.toThrow(RESPONSE_ERROR_MESSAGES.USERS_QUOTA_REACHED);
-		});
-
 		it('throws a BadRequestError if the users are not found', async () => {
 			jest.spyOn(ssoHelpers, 'isSsoCurrentAuthenticationMethod').mockReturnValue(false);
 			const id = uuidv4();
@@ -310,7 +267,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,
@@ -330,7 +286,6 @@ describe('AuthController', () => {
 				inviterId: id,
 				inviteeId: id,
 			});
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(true);
 			jest.spyOn(userRepository, 'findManyByIds').mockResolvedValue([]);
 
 			const promise = authController.resolveSignupToken(req, res, payload);
@@ -348,7 +303,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,
@@ -368,7 +322,6 @@ describe('AuthController', () => {
 				inviterId: id,
 				inviteeId: id,
 			});
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(true);
 			jest.spyOn(userRepository, 'findManyByIds').mockResolvedValue([
 				mock<User>({
 					id,
@@ -397,7 +350,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,
@@ -417,7 +369,6 @@ describe('AuthController', () => {
 				inviterId: id,
 				inviteeId: id,
 			});
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(true);
 			jest.spyOn(userRepository, 'findManyByIds').mockResolvedValue([
 				mock<User>({
 					id,
@@ -446,7 +397,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,
@@ -466,7 +416,6 @@ describe('AuthController', () => {
 				inviterId: id,
 				inviteeId: id,
 			});
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(true);
 			jest.spyOn(userRepository, 'findManyByIds').mockResolvedValue([
 				mock<User>({
 					id,
@@ -503,7 +452,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,
@@ -523,7 +471,6 @@ describe('AuthController', () => {
 				inviterId,
 				inviteeId,
 			});
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(true);
 			jest.spyOn(userRepository, 'findManyByIds').mockResolvedValue([
 				mock<User>({
 					id: inviterId,
@@ -560,7 +507,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,
@@ -594,7 +540,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,
@@ -627,7 +572,6 @@ describe('AuthController', () => {
 				authService,
 				mfaService,
 				userService,
-				license,
 				userRepository,
 				eventService,
 				authHandlerRegistry,

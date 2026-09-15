@@ -48,22 +48,16 @@ beforeEach(async () => {
 });
 
 describe('GET /executions', () => {
-	test('only returns executions of shared workflows if sharing is enabled', async () => {
+	test('returns executions of shared workflows', async () => {
 		const workflow = await createWorkflow({}, owner);
 		await shareWorkflowWithUsers(workflow, [member]);
 		await createSuccessfulExecution(workflow);
 
-		const response1 = await testServer.authAgentFor(member).get('/executions').expect(200);
-		expect(response1.body.data.count).toBe(0);
-
-		testServer.license.enable('feat:sharing');
-
-		const response2 = await testServer.authAgentFor(member).get('/executions').expect(200);
-		expect(response2.body.data.count).toBe(1);
+		const response = await testServer.authAgentFor(member).get('/executions').expect(200);
+		expect(response.body.data.count).toBe(1);
 	});
 
 	test('should return a scopes array for each execution', async () => {
-		testServer.license.enable('feat:sharing');
 		const workflow = await createWorkflow({}, owner);
 		await shareWorkflowWithUsers(workflow, [member]);
 		await createSuccessfulExecution(workflow);
@@ -75,10 +69,6 @@ describe('GET /executions', () => {
 
 describe('GET /executions/:id', () => {
 	test('project viewers can view executions for workflows in the project', async () => {
-		// if sharing is not enabled, we're only returning the executions of
-		// personal workflows
-		testServer.license.enable('feat:sharing');
-
 		const teamProject = await createTeamProject();
 		await linkUserToProject(member, teamProject, 'project:viewer');
 
@@ -91,14 +81,10 @@ describe('GET /executions/:id', () => {
 		expect(response.body.data).toBeDefined();
 	});
 
-	test('only returns executions of shared workflows if sharing is enabled', async () => {
+	test('returns executions of shared workflows', async () => {
 		const workflow = await createWorkflow({}, owner);
 		await shareWorkflowWithUsers(workflow, [member]);
 		const execution = await createSuccessfulExecution(workflow);
-
-		await testServer.authAgentFor(member).get(`/executions/${execution.id}`).expect(404);
-
-		testServer.license.enable('feat:sharing');
 
 		const response = await testServer
 			.authAgentFor(member)

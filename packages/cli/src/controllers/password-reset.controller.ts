@@ -4,7 +4,7 @@ import {
 	ResolvePasswordTokenQueryDto,
 } from '@n8n/api-types';
 import { Logger } from '@n8n/backend-common';
-import { GLOBAL_OWNER_ROLE, UserRepository } from '@n8n/db';
+import { UserRepository } from '@n8n/db';
 import { Time } from '@n8n/constants';
 import {
 	Body,
@@ -18,7 +18,6 @@ import { hasGlobalScope } from '@n8n/permissions';
 import { Response } from 'express';
 
 import { AuthService } from '@/auth/auth.service';
-import { RESPONSE_ERROR_MESSAGES } from '@/constants';
 import { ErrorReporter } from 'n8n-core';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
@@ -27,7 +26,6 @@ import { NotFoundError } from '@/errors/response-errors/not-found.error';
 import { UnprocessableRequestError } from '@/errors/response-errors/unprocessable.error';
 import { EventService } from '@/events/event.service';
 import { ExternalHooks } from '@/external-hooks';
-import { License } from '@/license';
 import { MfaService } from '@/mfa/mfa.service';
 import { AuthlessRequest } from '@/requests';
 import { PasswordUtility } from '@/services/password.utility';
@@ -48,7 +46,6 @@ export class PasswordResetController {
 		private readonly authService: AuthService,
 		private readonly userService: UserService,
 		private readonly mfaService: MfaService,
-		private readonly license: License,
 		private readonly passwordUtility: PasswordUtility,
 		private readonly userRepository: UserRepository,
 		private readonly eventService: EventService,
@@ -91,13 +88,6 @@ export class PasswordResetController {
 				return;
 			}
 
-			if (user.role.slug !== GLOBAL_OWNER_ROLE.slug && !this.license.isWithinUsersLimit()) {
-				this.logger.debug(
-					'Request to send password reset email failed because the user limit was reached',
-				);
-				throw new ForbiddenError(RESPONSE_ERROR_MESSAGES.USERS_QUOTA_REACHED);
-			}
-
 			if (
 				(isSamlCurrentAuthenticationMethod() || isOidcCurrentAuthenticationMethod()) &&
 				!(hasGlobalScope(user, 'user:resetPassword') || user.settings?.allowSSOManualLogin === true)
@@ -120,7 +110,7 @@ export class PasswordResetController {
 				return;
 			}
 
-			if (this.license.isLdapEnabled() && ldapIdentity) {
+			if (ldapIdentity) {
 				throw new UnprocessableRequestError('forgotPassword.ldapUserPasswordResetUnavailable');
 			}
 
@@ -175,14 +165,6 @@ export class PasswordResetController {
 		const { token } = payload;
 		const user = await this.authService.resolvePasswordResetToken(token);
 		if (!user) throw new NotFoundError('');
-
-		if (user.role.slug !== GLOBAL_OWNER_ROLE.slug && !this.license.isWithinUsersLimit()) {
-			this.logger.debug(
-				'Request to resolve password token failed because the user limit was reached',
-				{ userId: user.id },
-			);
-			throw new ForbiddenError(RESPONSE_ERROR_MESSAGES.USERS_QUOTA_REACHED);
-		}
 
 		this.logger.info('Reset-password token resolved successfully', { userId: user.id });
 		this.eventService.emit('user-password-reset-email-click', { user });

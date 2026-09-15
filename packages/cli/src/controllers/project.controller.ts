@@ -12,7 +12,6 @@ import {
 	Post,
 	GlobalScope,
 	RestController,
-	Licensed,
 	Patch,
 	ProjectScope,
 	Delete,
@@ -26,17 +25,12 @@ import type { Scope } from '@n8n/permissions';
 import { In, Not } from '@n8n/typeorm';
 import { Response } from 'express';
 
-import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
 import { EventService } from '@/events/event.service';
 import { ProvisioningService } from '@/modules/provisioning.ee/provisioning.service.ee';
 import type { ProjectRequest } from '@/requests';
-import {
-	ProjectService,
-	TeamProjectOverQuotaError,
-	UnlicensedProjectRoleError,
-} from '@/services/project.service.ee';
+import { ProjectService } from '@/services/project.service.ee';
 import { UserManagementMailer } from '@/user-management/email';
 
 @RestController('/projects')
@@ -97,39 +91,30 @@ export class ProjectController {
 
 	@Post('/')
 	@GlobalScope('project:create')
-	// Using admin as all plans that contain projects should allow admins at the very least
-	@Licensed('feat:projectRole:admin')
 	async createProject(req: AuthenticatedRequest, _res: Response, @Body payload: CreateProjectDto) {
-		try {
-			const project = await this.projectsService.createTeamProject(req.user, payload);
+		const project = await this.projectsService.createTeamProject(req.user, payload);
 
-			this.eventService.emit('team-project-created', {
-				userId: req.user.id,
-				role: req.user.role.slug,
-				uiContext: payload.uiContext,
-			});
+		this.eventService.emit('team-project-created', {
+			userId: req.user.id,
+			role: req.user.role.slug,
+			uiContext: payload.uiContext,
+		});
 
-			const relation = await this.projectsService.getProjectRelationForUserAndProject(
-				req.user.id,
-				project.id,
-			);
+		const relation = await this.projectsService.getProjectRelationForUserAndProject(
+			req.user.id,
+			project.id,
+		);
 
-			return {
-				...project,
-				role: 'project:admin',
-				scopes: [
-					...combineScopes({
-						global: getAuthPrincipalScopes(req.user),
-						project: relation?.role.scopes.map((scope) => scope.slug) ?? [],
-					}),
-				],
-			};
-		} catch (e) {
-			if (e instanceof TeamProjectOverQuotaError) {
-				throw new BadRequestError(e.message);
-			}
-			throw e;
-		}
+		return {
+			...project,
+			role: 'project:admin',
+			scopes: [
+				...combineScopes({
+					global: getAuthPrincipalScopes(req.user),
+					project: relation?.role.scopes.map((scope) => scope.slug) ?? [],
+				}),
+			],
+		};
 	}
 
 	@Get('/my-projects')
@@ -281,40 +266,35 @@ export class ProjectController {
 		@Param('projectId') projectId: string,
 		@Body payload: AddUsersToProjectDto,
 	) {
-		try {
-			const { added, conflicts, project } =
-				await this.projectsService.addUsersWithConflictSemantics(projectId, payload.relations);
+		const { added, conflicts, project } = await this.projectsService.addUsersWithConflictSemantics(
+			projectId,
+			payload.relations,
+		);
 
-			if (added.length > 0) {
-				await this.userManagementMailer.notifyProjectShared({
-					sharer: req.user,
-					newSharees: added,
-					project: { id: project.id, name: project.name },
-				});
-			}
-
-			const relations = await this.projectsService.getProjectRelations(projectId);
-			this.eventService.emit('team-project-updated', {
-				userId: req.user.id,
-				role: req.user.role.slug,
-				members: relations.map((r) => ({ userId: r.userId, role: r.role.slug })),
-				projectId,
+		if (added.length > 0) {
+			await this.userManagementMailer.notifyProjectShared({
+				sharer: req.user,
+				newSharees: added,
+				project: { id: project.id, name: project.name },
 			});
-
-			// Response semantics:
-			// - If at least one user was added, return 201. When there are also conflicts, include them in the body.
-			// - If no users were added but conflicts exist, return 409 with conflicts.
-			if (added.length > 0) {
-				return conflicts.length > 0 ? res.status(201).json({ conflicts }) : res.status(201).send();
-			}
-			if (conflicts.length > 0) return res.status(409).json({ conflicts });
-			return res.status(200).send();
-		} catch (e) {
-			if (e instanceof UnlicensedProjectRoleError) {
-				throw new BadRequestError(e.message);
-			}
-			throw e;
 		}
+
+		const relations = await this.projectsService.getProjectRelations(projectId);
+		this.eventService.emit('team-project-updated', {
+			userId: req.user.id,
+			role: req.user.role.slug,
+			members: relations.map((r) => ({ userId: r.userId, role: r.role.slug })),
+			projectId,
+		});
+
+		// Response semantics:
+		// - If at least one user was added, return 201. When there are also conflicts, include them in the body.
+		// - If no users were added but conflicts exist, return 409 with conflicts.
+		if (added.length > 0) {
+			return conflicts.length > 0 ? res.status(201).json({ conflicts }) : res.status(201).send();
+		}
+		if (conflicts.length > 0) return res.status(409).json({ conflicts });
+		return res.status(200).send();
 	}
 
 	@Patch('/:projectId/users/:userId')
@@ -332,22 +312,15 @@ export class ProjectController {
 			);
 		}
 
-		try {
-			await this.projectsService.changeUserRoleInProject(projectId, userId, body.role);
-			const relations = await this.projectsService.getProjectRelations(projectId);
-			this.eventService.emit('team-project-updated', {
-				userId: req.user.id,
-				role: req.user.role.slug,
-				members: relations.map((r) => ({ userId: r.userId, role: r.role.slug })),
-				projectId,
-			});
-			return res.status(204).send();
-		} catch (e) {
-			if (e instanceof UnlicensedProjectRoleError) {
-				throw new BadRequestError(e.message);
-			}
-			throw e;
-		}
+		await this.projectsService.changeUserRoleInProject(projectId, userId, body.role);
+		const relations = await this.projectsService.getProjectRelations(projectId);
+		this.eventService.emit('team-project-updated', {
+			userId: req.user.id,
+			role: req.user.role.slug,
+			members: relations.map((r) => ({ userId: r.userId, role: r.role.slug })),
+			projectId,
+		});
+		return res.status(204).send();
 	}
 
 	@Delete('/:projectId/users/:userId')

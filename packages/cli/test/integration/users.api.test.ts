@@ -1518,17 +1518,6 @@ describe('PATCH /users/:id/role', () => {
 			expect(response.body.message).toBe(NO_ADMIN_ON_OWNER);
 		});
 
-		test('should fail to promote member to admin if not licensed', async () => {
-			testServer.license.disable('feat:advancedPermissions');
-
-			const response = await adminAgent.patch(`/users/${member.id}/role`).send({
-				newRoleName: 'global:admin',
-			});
-
-			expect(response.statusCode).toBe(403);
-			expect(response.body.message).toBe('Plan lacks license for this feature');
-		});
-
 		test('should be able to demote admin to member', async () => {
 			const response = await adminAgent.patch(`/users/${otherAdmin.id}/role`).send({
 				newRoleName: 'global:member',
@@ -1601,17 +1590,6 @@ describe('PATCH /users/:id/role', () => {
 
 			expect(response.statusCode).toBe(403);
 			expect(response.body.message).toBe(NO_OWNER_ON_OWNER);
-		});
-
-		test('should fail to promote member to admin if not licensed', async () => {
-			testServer.license.disable('feat:advancedPermissions');
-
-			const response = await ownerAgent.patch(`/users/${member.id}/role`).send({
-				newRoleName: 'global:admin',
-			});
-
-			expect(response.statusCode).toBe(403);
-			expect(response.body.message).toBe('Plan lacks license for this feature');
 		});
 
 		test('should be able to promote member to admin if licensed', async () => {

@@ -102,8 +102,6 @@ export class Worker extends BaseCommand<z.infer<typeof flagsSchema>> {
 		await Container.get(JwtService).initialize(Container.get(DeploymentKeyRepository));
 		await Container.get(BinaryDataConfig).initialize(Container.get(DeploymentKeyRepository));
 
-		await this.initLicense();
-		this.logger.debug('License init complete');
 		await this.initCommunityPackages();
 		await Container.get(CredentialsOverwrites).init();
 		this.logger.debug('Credentials overwrites init complete');

@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import { mockInstance } from '@n8n/backend-test-utils';
 import { ProjectRepository, User } from '@n8n/db';
 
@@ -13,27 +12,21 @@ describe('search-projects MCP tool', () => {
 		projects?: Array<{ id: string; name: string; type: string }>;
 		count?: number;
 		exactProjects?: Array<{ id: string; name: string; type: string }>;
-		teamProjectsEnabled?: boolean;
 	}) => {
 		const projects = overrides?.projects ?? [];
 		const count = overrides?.count ?? projects.length;
 		const exactProjects = overrides?.exactProjects ?? [];
-		const teamProjectsEnabled = overrides?.teamProjectsEnabled ?? true;
 
 		const projectRepository = mockInstance(ProjectRepository, {
 			getAccessibleProjectsAndCount: jest.fn().mockResolvedValue([projects, count]),
 			getAccessibleProjectsByExactName: jest.fn().mockResolvedValue(exactProjects),
 		});
 
-		const licenseState = mockInstance(LicenseState, {
-			isTeamProjectsLicensed: jest.fn().mockReturnValue(teamProjectsEnabled),
-		});
-
 		const telemetry = mockInstance(Telemetry, {
 			track: jest.fn(),
 		});
 
-		return { projectRepository, licenseState, telemetry };
+		return { projectRepository, telemetry };
 	};
 
 	const callHandler = async (
@@ -50,12 +43,11 @@ describe('search-projects MCP tool', () => {
 		);
 
 	test('creates tool correctly', () => {
-		const { projectRepository, licenseState, telemetry } = createMocks();
+		const { projectRepository, telemetry } = createMocks();
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -71,12 +63,11 @@ describe('search-projects MCP tool', () => {
 			{ id: 'proj-1', name: 'My Project', type: 'team' },
 			{ id: 'proj-2', name: 'Personal', type: 'personal' },
 		];
-		const { projectRepository, licenseState, telemetry } = createMocks({ projects });
+		const { projectRepository, telemetry } = createMocks({ projects });
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -93,12 +84,11 @@ describe('search-projects MCP tool', () => {
 	});
 
 	test('filters by query', async () => {
-		const { projectRepository, licenseState, telemetry } = createMocks();
+		const { projectRepository, telemetry } = createMocks();
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -112,12 +102,11 @@ describe('search-projects MCP tool', () => {
 	});
 
 	test('filters by type', async () => {
-		const { projectRepository, licenseState, telemetry } = createMocks();
+		const { projectRepository, telemetry } = createMocks();
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -136,12 +125,11 @@ describe('search-projects MCP tool', () => {
 			{ id: 'proj-exact', name: 'Finance', type: 'team' },
 			{ id: 'proj-archive', name: 'Old Finance Archive', type: 'team' },
 		];
-		const { projectRepository, licenseState, telemetry } = createMocks({ projects });
+		const { projectRepository, telemetry } = createMocks({ projects });
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -158,12 +146,11 @@ describe('search-projects MCP tool', () => {
 			{ id: 'proj-old', name: 'Finance-Old', type: 'team' },
 			{ id: 'proj-archive', name: 'Old Finance Archive', type: 'team' },
 		];
-		const { projectRepository, licenseState, telemetry } = createMocks({ projects });
+		const { projectRepository, telemetry } = createMocks({ projects });
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -179,12 +166,11 @@ describe('search-projects MCP tool', () => {
 			{ id: 'proj-exact', name: 'Finance', type: 'team' },
 			{ id: 'proj-old', name: 'Finance-Old', type: 'team' },
 		];
-		const { projectRepository, licenseState, telemetry } = createMocks({ projects });
+		const { projectRepository, telemetry } = createMocks({ projects });
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -201,7 +187,7 @@ describe('search-projects MCP tool', () => {
 			{ id: 'proj-b', name: 'Finance Backups', type: 'team' },
 		];
 		const exactProjects = [{ id: 'proj-exact', name: 'Finance', type: 'team' }];
-		const { projectRepository, licenseState, telemetry } = createMocks({
+		const { projectRepository, telemetry } = createMocks({
 			projects: partialProjects,
 			count: 5,
 			exactProjects,
@@ -210,7 +196,6 @@ describe('search-projects MCP tool', () => {
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -236,7 +221,7 @@ describe('search-projects MCP tool', () => {
 			{ id: 'proj-exact', name: 'Finance', type: 'team' },
 		];
 		const exactProjects = [{ id: 'proj-exact', name: 'Finance', type: 'team' }];
-		const { projectRepository, licenseState, telemetry } = createMocks({
+		const { projectRepository, telemetry } = createMocks({
 			projects: partialProjects,
 			count: 2,
 			exactProjects,
@@ -245,7 +230,6 @@ describe('search-projects MCP tool', () => {
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -265,7 +249,7 @@ describe('search-projects MCP tool', () => {
 			{ id: 'proj-a', name: 'Finance', type: 'team' },
 			{ id: 'proj-b', name: 'Finance', type: 'team' },
 		];
-		const { projectRepository, licenseState, telemetry } = createMocks({
+		const { projectRepository, telemetry } = createMocks({
 			projects: exactProjects,
 			exactProjects,
 		});
@@ -273,7 +257,6 @@ describe('search-projects MCP tool', () => {
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -285,7 +268,7 @@ describe('search-projects MCP tool', () => {
 	});
 
 	test('trims whitespace from the query before querying the repository', async () => {
-		const { projectRepository, licenseState, telemetry } = createMocks({
+		const { projectRepository, telemetry } = createMocks({
 			projects: [{ id: 'proj-1', name: 'Finance', type: 'team' }],
 			exactProjects: [{ id: 'proj-1', name: 'Finance', type: 'team' }],
 		});
@@ -293,7 +276,6 @@ describe('search-projects MCP tool', () => {
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -311,12 +293,11 @@ describe('search-projects MCP tool', () => {
 	});
 
 	test('forwards the type filter to the exact-name lookup', async () => {
-		const { projectRepository, licenseState, telemetry } = createMocks();
+		const { projectRepository, telemetry } = createMocks();
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -330,12 +311,11 @@ describe('search-projects MCP tool', () => {
 	});
 
 	test('returns an empty data array and no hint when the query has no matches', async () => {
-		const { projectRepository, licenseState, telemetry } = createMocks({ projects: [], count: 0 });
+		const { projectRepository, telemetry } = createMocks({ projects: [], count: 0 });
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -348,14 +328,13 @@ describe('search-projects MCP tool', () => {
 	});
 
 	test('does not query exact-name endpoint when no query is provided', async () => {
-		const { projectRepository, licenseState, telemetry } = createMocks({
+		const { projectRepository, telemetry } = createMocks({
 			projects: [{ id: 'proj-1', name: 'Anything', type: 'team' }],
 		});
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -366,12 +345,11 @@ describe('search-projects MCP tool', () => {
 
 	test('does not attach matchType when no query is provided', async () => {
 		const projects = [{ id: 'proj-1', name: 'My Project', type: 'team' }];
-		const { projectRepository, licenseState, telemetry } = createMocks({ projects });
+		const { projectRepository, telemetry } = createMocks({ projects });
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -385,15 +363,11 @@ describe('search-projects MCP tool', () => {
 		const projectRepository = mockInstance(ProjectRepository, {
 			getAccessibleProjectsAndCount: jest.fn().mockRejectedValue(new Error('DB error')),
 		});
-		const licenseState = mockInstance(LicenseState, {
-			isTeamProjectsLicensed: jest.fn().mockReturnValue(true),
-		});
 		const telemetry = mockInstance(Telemetry, { track: jest.fn() });
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -407,40 +381,12 @@ describe('search-projects MCP tool', () => {
 		});
 	});
 
-	test('reports teamProjectsEnabled=false and surfaces a guidance hint when team projects are not licensed', async () => {
-		const projects = [{ id: 'proj-personal', name: 'Personal', type: 'personal' }];
-		const { projectRepository, licenseState, telemetry } = createMocks({
-			projects,
-			teamProjectsEnabled: false,
-		});
+	test('reports teamProjectsEnabled=true', async () => {
+		const { projectRepository, telemetry } = createMocks();
 
 		const tool = createSearchProjectsTool(
 			user,
 			projectRepository as unknown as ProjectRepository,
-			licenseState,
-			telemetry,
-		);
-
-		const result = await callHandler(tool, {});
-
-		const output = result.structuredContent as {
-			teamProjectsEnabled: boolean;
-			hint?: string;
-		};
-		expect(output.teamProjectsEnabled).toBe(false);
-		expect(output.hint).toContain('Team projects are not enabled');
-		expect(output.hint).toContain('personal project');
-	});
-
-	test('reports teamProjectsEnabled=true and omits the disabled hint when team projects are licensed', async () => {
-		const { projectRepository, licenseState, telemetry } = createMocks({
-			teamProjectsEnabled: true,
-		});
-
-		const tool = createSearchProjectsTool(
-			user,
-			projectRepository as unknown as ProjectRepository,
-			licenseState,
 			telemetry,
 		);
 
@@ -452,37 +398,5 @@ describe('search-projects MCP tool', () => {
 		};
 		expect(output.teamProjectsEnabled).toBe(true);
 		expect(output.hint).toBeUndefined();
-	});
-
-	test('combines the disambiguation hint with the team-projects-disabled note when both apply', async () => {
-		const projects = [
-			{ id: 'proj-old', name: 'Finance-Old', type: 'team' },
-			{ id: 'proj-archive', name: 'Old Finance Archive', type: 'team' },
-		];
-		const { projectRepository, licenseState, telemetry } = createMocks({
-			projects,
-			teamProjectsEnabled: false,
-		});
-
-		const tool = createSearchProjectsTool(
-			user,
-			projectRepository as unknown as ProjectRepository,
-			licenseState,
-			telemetry,
-		);
-
-		const result = await callHandler(tool, { query: 'finance' });
-
-		const output = result.structuredContent as {
-			teamProjectsEnabled: boolean;
-			hint?: string;
-		};
-		expect(output.teamProjectsEnabled).toBe(false);
-		expect(output.hint).toContain('No exact match for "finance"');
-		expect(output.hint).toContain('Team projects are not enabled');
-		const disambigIdx = output.hint?.indexOf('No exact match') ?? -1;
-		const disabledIdx = output.hint?.indexOf('Team projects') ?? -1;
-		expect(disambigIdx).toBeGreaterThanOrEqual(0);
-		expect(disabledIdx).toBeGreaterThan(disambigIdx);
 	});
 });

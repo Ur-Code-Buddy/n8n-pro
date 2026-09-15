@@ -17,7 +17,6 @@ import type {
 } from 'n8n-workflow';
 
 import { N8N_VERSION } from '@/constants';
-import { License } from '@/license';
 import { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import { WorkflowBuilderSessionRepository } from '@/modules/workflow-builder';
 import { Push } from '@/push';
@@ -41,7 +40,6 @@ export class WorkflowBuilderService {
 
 	constructor(
 		private readonly loadNodesAndCredentials: LoadNodesAndCredentials,
-		private readonly license: License,
 		private readonly config: GlobalConfig,
 		private readonly logger: Logger,
 		private readonly urlService: UrlService,
@@ -83,20 +81,12 @@ export class WorkflowBuilderService {
 		// Create AiAssistantClient if baseUrl is configured
 		const baseUrl = this.config.aiAssistant.baseUrl;
 		if (baseUrl) {
-			const licenseCert = await this.license.loadCertStr();
-			const consumerId = this.license.getConsumerId();
-
 			this.client = new AiAssistantClient({
-				licenseCert,
-				consumerId,
+				licenseCert: '',
+				consumerId: 'unknown',
 				baseUrl,
 				n8nVersion: N8N_VERSION,
 				instanceId: this.instanceSettings.instanceId,
-			});
-
-			// Register for license certificate updates
-			this.license.onCertRefresh((cert) => {
-				this.client?.updateLicenseCert(cert);
 			});
 		}
 

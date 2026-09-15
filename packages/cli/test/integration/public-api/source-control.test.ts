@@ -66,17 +66,7 @@ describe('POST /source-control/pull (Public API)', () => {
 		expect(response.body).toEqual({ message: 'Forbidden' });
 	});
 
-	it('should return 401 when Source Control is not licensed', async () => {
-		const response = await testServer.publicApiAgentFor(owner).post(pullUrl).send(validBody);
-
-		expect(response.status).toBe(401);
-		expect(response.body).toEqual({
-			status: 'Error',
-			message: 'Source Control feature is not licensed',
-		});
-	});
-
-	it('should return 400 when licensed but Source Control is not connected', async () => {
+	it('should return 400 when Source Control is not connected', async () => {
 		testServer.license.enable('feat:sourceControl');
 
 		const response = await testServer.publicApiAgentFor(owner).post(pullUrl).send(validBody);

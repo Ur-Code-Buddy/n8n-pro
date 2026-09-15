@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import { createTeamProject, testDb } from '@n8n/backend-test-utils';
 import type { Project } from '@n8n/db';
 import {
@@ -8,7 +7,6 @@ import {
 	SharedCredentialsRepository,
 } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 import { Cipher } from 'n8n-core';
 
 describe('SecretsProviderConnectionRepository', () => {
@@ -19,10 +17,6 @@ describe('SecretsProviderConnectionRepository', () => {
 	let project2: Project;
 
 	beforeAll(async () => {
-		const licenseMock = mock<LicenseState>();
-		licenseMock.isLicensed.mockReturnValue(true);
-		Container.set(LicenseState, licenseMock);
-
 		await testDb.init();
 
 		connectionRepository = Container.get(SecretsProviderConnectionRepository);

@@ -1,26 +1,17 @@
-import type { LicenseState } from '@n8n/backend-common';
 import { mockInstance } from '@n8n/backend-test-utils';
 import { RoleRepository, ScopeRepository } from '@n8n/db';
-import { mock } from 'jest-mock-extended';
 
 import { RoleCacheService } from '@/services/role-cache.service';
 import { RoleService } from '@/services/role.service';
 import { Logger } from '@n8n/backend-common';
 
 describe('RoleService.rolesWithScope', () => {
-	const licenseState = mock<LicenseState>();
 	const roleRepository = mockInstance(RoleRepository);
 	const scopeRepository = mockInstance(ScopeRepository);
 	const roleCacheService = mockInstance(RoleCacheService);
 	const logger = mockInstance(Logger);
 
-	const roleService = new RoleService(
-		licenseState,
-		roleRepository,
-		scopeRepository,
-		roleCacheService,
-		logger,
-	);
+	const roleService = new RoleService(roleRepository, scopeRepository, roleCacheService, logger);
 
 	beforeEach(() => {
 		jest.clearAllMocks();

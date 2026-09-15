@@ -8,9 +8,8 @@ import {
 	WorkflowRepository,
 } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { PROJECT_OWNER_ROLE_SLUG, type Scope } from '@n8n/permissions';
+import type { Scope } from '@n8n/permissions';
 
-import { License } from '@/license';
 import { RedactionEnforcementService } from '@/modules/redaction/redaction-enforcement.service';
 import { WorkflowCreationService } from '@/workflows/workflow-creation.service';
 import { WorkflowSharingService } from '@/workflows/workflow-sharing.service';
@@ -24,18 +23,10 @@ export async function getSharedWorkflowIds(
 	scopes: Scope[],
 	projectId?: string,
 ): Promise<string[]> {
-	if (Container.get(License).isSharingEnabled()) {
-		return await Container.get(WorkflowSharingService).getSharedWorkflowIds(user, {
-			scopes,
-			projectId,
-		});
-	} else {
-		return await Container.get(WorkflowSharingService).getSharedWorkflowIds(user, {
-			workflowRoles: ['workflow:owner'],
-			projectRoles: [PROJECT_OWNER_ROLE_SLUG],
-			projectId,
-		});
-	}
+	return await Container.get(WorkflowSharingService).getSharedWorkflowIds(user, {
+		scopes,
+		projectId,
+	});
 }
 
 export async function getSharedWorkflow(

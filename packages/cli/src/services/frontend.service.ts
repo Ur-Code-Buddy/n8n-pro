@@ -1,7 +1,7 @@
 import type { FrontendSettings, ITelemetrySettings, N8nEnvFeatFlags } from '@n8n/api-types';
-import { LicenseState, Logger, ModuleRegistry } from '@n8n/backend-common';
+import { UNLIMITED_CREDITS } from '@n8n/api-types';
+import { Logger, ModuleRegistry } from '@n8n/backend-common';
 import { GlobalConfig, SecurityConfig } from '@n8n/config';
-import { LICENSE_FEATURES, LICENSE_QUOTAS } from '@n8n/constants';
 import { Container, Service } from '@n8n/di';
 import { createWriteStream } from 'fs';
 import { mkdir } from 'fs/promises';
@@ -15,7 +15,6 @@ import { inE2ETests, N8N_VERSION } from '@/constants';
 import { CredentialTypes } from '@/credential-types';
 import { CredentialsOverwrites } from '@/credentials-overwrites';
 import { resolveEvaluationConcurrencyLimit } from '@/evaluation.ee/evaluation-concurrency.helper';
-import { License } from '@/license';
 import { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import { MfaService } from '@/mfa/mfa.service';
 import { CommunityPackagesConfig } from '@/modules/community-packages/community-packages.config';
@@ -32,6 +31,9 @@ import {
 } from '@/workflows/workflow-history/workflow-history-helper';
 import { AiUsageService } from './ai-usage.service';
 import { UrlService } from './url.service';
+
+/** Sentinel for numeric quota fields that no longer have a cap. */
+const UNLIMITED_QUOTA = -1;
 
 /**
  * IMPORTANT: Only add settings that are absolutely necessary for non-authenticated pages
@@ -117,14 +119,12 @@ export class FrontendService {
 		private readonly loadNodesAndCredentials: LoadNodesAndCredentials,
 		private readonly credentialTypes: CredentialTypes,
 		private readonly credentialsOverwrites: CredentialsOverwrites,
-		private readonly license: License,
 		private readonly mailer: UserManagementMailer,
 		private readonly instanceSettings: InstanceSettings,
 		private readonly urlService: UrlService,
 		private readonly securityConfig: SecurityConfig,
 		private readonly pushConfig: PushConfig,
 		private readonly binaryDataConfig: BinaryDataConfig,
-		private readonly licenseState: LicenseState,
 		private readonly moduleRegistry: ModuleRegistry,
 		private readonly mfaService: MfaService,
 		private readonly ownershipService: OwnershipService,
@@ -215,10 +215,7 @@ export class FrontendService {
 			nodeEnv: process.env.NODE_ENV,
 			versionCli: N8N_VERSION,
 			concurrency: this.globalConfig.executions.concurrency.productionLimit,
-			evaluationConcurrencyLimit: resolveEvaluationConcurrencyLimit(
-				this.globalConfig.executions,
-				this.license,
-			),
+			evaluationConcurrencyLimit: resolveEvaluationConcurrencyLimit(this.globalConfig.executions),
 			authCookie: {
 				secure: this.globalConfig.auth.cookie.secure,
 			},
@@ -254,7 +251,7 @@ export class FrontendService {
 				this.globalConfig.personalization.enabled && this.globalConfig.diagnostics.enabled,
 			defaultLocale: this.globalConfig.defaultLocale,
 			userManagement: {
-				quota: this.license.getUsersLimit(),
+				quota: UNLIMITED_QUOTA,
 				showSetupOnFirstLoad: await this.getShowSetupOnFirstLoad(),
 				smtpSetup: this.mailer.isEmailSetUp,
 				authenticationMethod: getCurrentAuthenticationMethod(),
@@ -357,7 +354,7 @@ export class FrontendService {
 			hideUsagePage: this.globalConfig.hideUsagePage,
 			license: {
 				consumerId: 'unknown',
-				environment: this.globalConfig.license.tenantId === 1 ? 'production' : 'staging',
+				environment: 'production',
 			},
 			variables: {
 				limit: 0,
@@ -400,7 +397,7 @@ export class FrontendService {
 				enabled: false,
 			},
 			evaluation: {
-				quota: this.licenseState.getMaxWorkflowsWithEvaluations(),
+				quota: UNLIMITED_QUOTA,
 			},
 			activeModules: this.moduleRegistry.getActiveModules(),
 			canvasOnly: this.globalConfig.canvasOnly,
@@ -439,7 +436,7 @@ export class FrontendService {
 
 		// refresh user management status
 		Object.assign(this.settings.userManagement, {
-			quota: this.license.getUsersLimit(),
+			quota: UNLIMITED_QUOTA,
 			authenticationMethod: getCurrentAuthenticationMethod(),
 			showSetupOnFirstLoad: await this.getShowSetupOnFirstLoad(),
 		});
@@ -466,108 +463,84 @@ export class FrontendService {
 
 		const isS3Selected = this.binaryDataConfig.mode === 's3';
 		const isS3Available = this.binaryDataConfig.availableModes.includes('s3');
-		const isS3Licensed = this.license.isBinaryDataS3Licensed();
-		const isAiAssistantEnabled = this.license.isAiAssistantEnabled();
-		const isAskAiEnabled = this.license.isAskAiEnabled();
-		const isAiCreditsEnabled = this.license.isAiCreditsEnabled();
-		const isAiBuilderEnabled = this.license.isLicensed(LICENSE_FEATURES.AI_BUILDER);
 
-		this.settings.license.planName = this.license.getPlanName();
-		this.settings.license.consumerId = this.license.getConsumerId();
+		this.settings.license.planName = 'Enterprise';
+		this.settings.license.consumerId = 'unknown';
 
-		// Re-resolve on every settings fetch so a license upgrade/downgrade
-		// (and the tier-default it implies) propagates to the FE without an
-		// instance restart. The env override still wins inside the resolver.
+		// Re-resolve on every settings fetch — the env override still wins
+		// inside the resolver.
 		this.settings.evaluationConcurrencyLimit = resolveEvaluationConcurrencyLimit(
 			this.globalConfig.executions,
-			this.license,
 		);
 
-		// refresh enterprise status
+		// All enterprise features are available on every instance.
 		Object.assign(this.settings.enterprise, {
-			sharing: this.license.isSharingEnabled(),
-			logStreaming: this.license.isLogStreamingEnabled(),
-			ldap: this.license.isLdapEnabled(),
-			saml: this.license.isSamlEnabled(),
-			oidc: this.licenseState.isOidcLicensed(),
-			mfaEnforcement: this.licenseState.isMFAEnforcementLicensed(),
+			sharing: true,
+			logStreaming: true,
+			ldap: true,
+			saml: true,
+			oidc: true,
+			mfaEnforcement: true,
 			provisioning: false, // temporarily disabled until this feature is ready for release
-			advancedExecutionFilters: this.license.isAdvancedExecutionFiltersEnabled(),
-			variables: this.license.isVariablesEnabled(),
-			sourceControl: this.license.isSourceControlLicensed(),
-			externalSecrets: this.license.isExternalSecretsEnabled(),
-			showNonProdBanner: this.license.isLicensed(LICENSE_FEATURES.SHOW_NON_PROD_BANNER),
-			debugInEditor: this.license.isDebugInEditorLicensed(),
-			binaryDataS3: isS3Available && isS3Selected && isS3Licensed,
-			workerView: this.license.isWorkerViewLicensed(),
-			advancedPermissions: this.license.isAdvancedPermissionsLicensed(),
+			advancedExecutionFilters: true,
+			variables: true,
+			sourceControl: true,
+			externalSecrets: true,
+			showNonProdBanner: false,
+			debugInEditor: true,
+			binaryDataS3: isS3Available && isS3Selected,
+			workerView: true,
+			advancedPermissions: true,
 
-			workflowDiffs: this.licenseState.isWorkflowDiffsLicensed(),
-			namedVersions: this.license.isLicensed(LICENSE_FEATURES.NAMED_VERSIONS),
-			customRoles: this.licenseState.isCustomRolesLicensed(),
-			personalSpacePolicy: this.licenseState.isPersonalSpacePolicyLicensed(),
-			dataRedaction: this.licenseState.isDataRedactionLicensed(),
-			otelCustomSpanAttributes: this.licenseState.isOtelCustomSpanAttributesLicensed(),
+			workflowDiffs: true,
+			namedVersions: true,
+			customRoles: true,
+			personalSpacePolicy: true,
+			dataRedaction: true,
+			otelCustomSpanAttributes: true,
 		});
 
-		if (this.license.isLdapEnabled()) {
-			Object.assign(this.settings.sso.ldap, {
-				loginLabel: this.globalConfig.sso.ldap.loginLabel,
-				loginEnabled: this.globalConfig.sso.ldap.loginEnabled,
-			});
-		}
+		Object.assign(this.settings.sso.ldap, {
+			loginLabel: this.globalConfig.sso.ldap.loginLabel,
+			loginEnabled: this.globalConfig.sso.ldap.loginEnabled,
+		});
 
-		if (this.license.isSamlEnabled()) {
-			Object.assign(this.settings.sso.saml, {
-				loginLabel: getSamlLoginLabel(),
-				loginEnabled: this.globalConfig.sso.saml.loginEnabled,
-			});
-		}
+		Object.assign(this.settings.sso.saml, {
+			loginLabel: getSamlLoginLabel(),
+			loginEnabled: this.globalConfig.sso.saml.loginEnabled,
+		});
 
-		if (this.licenseState.isOidcLicensed()) {
-			Object.assign(this.settings.sso.oidc, {
-				loginEnabled: this.globalConfig.sso.oidc.loginEnabled,
-			});
-		}
+		Object.assign(this.settings.sso.oidc, {
+			loginEnabled: this.globalConfig.sso.oidc.loginEnabled,
+		});
 
-		if (this.license.isVariablesEnabled()) {
-			this.settings.variables.limit = this.license.getVariablesLimit();
-		}
+		this.settings.variables.limit = UNLIMITED_QUOTA;
 
 		if (this.communityPackagesService) {
 			this.settings.missingPackages = this.communityPackagesService.hasMissingPackages;
 		}
 
-		if (isAiAssistantEnabled) {
-			this.settings.aiAssistant.enabled = isAiAssistantEnabled;
-			this.settings.aiAssistant.setup =
-				!!this.globalConfig.aiAssistant.baseUrl || !!process.env.N8N_AI_ANTHROPIC_KEY;
-		}
+		this.settings.aiAssistant.enabled = true;
+		this.settings.aiAssistant.setup =
+			!!this.globalConfig.aiAssistant.baseUrl || !!process.env.N8N_AI_ANTHROPIC_KEY;
 
-		if (isAskAiEnabled) {
-			this.settings.askAi.enabled = isAskAiEnabled;
-		}
+		this.settings.askAi.enabled = true;
 
-		if (isAiCreditsEnabled) {
-			this.settings.aiCredits.enabled = isAiCreditsEnabled;
-			this.settings.aiCredits.credits = this.license.getAiCredits();
-			this.settings.aiCredits.setup = !!this.globalConfig.aiAssistant.baseUrl;
-		}
+		this.settings.aiCredits.enabled = true;
+		this.settings.aiCredits.credits = UNLIMITED_CREDITS;
+		this.settings.aiCredits.setup = !!this.globalConfig.aiAssistant.baseUrl;
 
-		const isAiGatewayEnabled =
-			this.licenseState.isAiGatewayLicensed() && !!this.globalConfig.aiAssistant.baseUrl;
+		const isAiGatewayEnabled = !!this.globalConfig.aiAssistant.baseUrl;
 		if (isAiGatewayEnabled) {
 			this.settings.aiGateway = {
 				enabled: true,
-				budget: this.license.getValue(LICENSE_QUOTAS.AI_GATEWAY_BUDGET) ?? 0,
+				budget: UNLIMITED_CREDITS,
 			};
 		}
 
-		if (isAiBuilderEnabled) {
-			this.settings.aiBuilder.enabled = isAiBuilderEnabled;
-			this.settings.aiBuilder.setup =
-				!!this.globalConfig.aiAssistant.baseUrl || !!this.globalConfig.aiBuilder.apiKey;
-		}
+		this.settings.aiBuilder.enabled = true;
+		this.settings.aiBuilder.setup =
+			!!this.globalConfig.aiAssistant.baseUrl || !!this.globalConfig.aiBuilder.apiKey;
 
 		this.settings.mfa.enabled = this.globalConfig.mfa.enabled;
 
@@ -578,12 +551,12 @@ export class FrontendService {
 
 		this.settings.binaryDataMode = this.binaryDataConfig.mode;
 
-		this.settings.enterprise.projects.team.limit = this.license.getTeamProjectLimit();
+		this.settings.enterprise.projects.team.limit = UNLIMITED_QUOTA;
 
-		this.settings.folders.enabled = this.license.isFoldersEnabled();
+		this.settings.folders.enabled = true;
 
 		// Refresh evaluation settings
-		this.settings.evaluation.quota = this.licenseState.getMaxWorkflowsWithEvaluations();
+		this.settings.evaluation.quota = UNLIMITED_QUOTA;
 
 		// Refresh environment feature flags
 		this.settings.envFeatureFlags = this.collectEnvFeatureFlags();

@@ -44,15 +44,7 @@ describe('Telemetry', () => {
 		const postHog = new PostHogClient(instanceSettings, mock());
 		await postHog.init();
 
-		telemetry = new Telemetry(
-			mock(),
-			postHog,
-			mock(),
-			instanceSettings,
-			mock(),
-			globalConfig,
-			mock(),
-		);
+		telemetry = new Telemetry(mock(), postHog, instanceSettings, mock(), globalConfig, mock());
 		// @ts-expect-error Assigning to private property
 		telemetry.rudderStack = mockRudderStack;
 	});

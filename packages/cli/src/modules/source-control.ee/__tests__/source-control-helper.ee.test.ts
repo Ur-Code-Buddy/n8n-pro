@@ -6,7 +6,6 @@ import { InstanceSettings } from 'n8n-core';
 import type { ICredentialDataDecryptedObject } from 'n8n-workflow';
 import path from 'path';
 
-import type { License } from '@/license';
 import {
 	SOURCE_CONTROL_GIT_FOLDER,
 	SOURCE_CONTROL_SSH_FOLDER,
@@ -173,12 +172,10 @@ const pullResult: SourceControlledFile[] = [
 	},
 ];
 
-const license = mock<License>();
 const sourceControlPreferencesService = mock<SourceControlPreferencesService>();
 
 beforeAll(async () => {
 	jest.resetAllMocks();
-	license.isSourceControlLicensed.mockReturnValue(true);
 	sourceControlPreferencesService.getPreferences.mockReturnValue({
 		branchName: 'main',
 		connected: true,

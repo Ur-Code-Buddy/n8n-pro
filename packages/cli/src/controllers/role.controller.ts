@@ -7,14 +7,12 @@ import {
 	UpdateRoleDto,
 } from '@n8n/api-types';
 import type { RoleAssignmentsResponse, RoleProjectMembersResponse } from '@n8n/api-types';
-import { LICENSE_FEATURES } from '@n8n/constants';
 import { AuthenticatedRequest } from '@n8n/db';
 import {
 	Body,
 	Delete,
 	Get,
 	GlobalScope,
-	Licensed,
 	Param,
 	Patch,
 	Post,
@@ -83,7 +81,6 @@ export class RoleController {
 
 	@Patch('/:slug')
 	@GlobalScope('role:manage')
-	@Licensed(LICENSE_FEATURES.CUSTOM_ROLES)
 	async updateRole(
 		req: AuthenticatedRequest,
 		_res: Response,
@@ -101,7 +98,6 @@ export class RoleController {
 
 	@Delete('/:slug')
 	@GlobalScope('role:manage')
-	@Licensed(LICENSE_FEATURES.CUSTOM_ROLES)
 	async deleteRole(
 		req: AuthenticatedRequest,
 		_res: Response,
@@ -117,7 +113,6 @@ export class RoleController {
 
 	@Post('/')
 	@GlobalScope('role:manage')
-	@Licensed(LICENSE_FEATURES.CUSTOM_ROLES)
 	async createRole(
 		req: AuthenticatedRequest,
 		_res: Response,
