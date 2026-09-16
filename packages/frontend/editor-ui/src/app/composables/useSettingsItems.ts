@@ -11,6 +11,59 @@ import { hasPermission } from '../utils/rbac/permissions';
 import { MIGRATION_REPORT_TARGET_VERSION } from '@n8n/api-types';
 import { useEnvFeatureFlag } from '@/features/shared/envFeatureFlag/useEnvFeatureFlag';
 
+/**
+ * Settings items are grouped into these sections in the sidebar. Ids are
+ * mapped to i18n labels in `SECTION_ORDER` below; an item whose id isn't
+ * listed in `SECTION_BY_ITEM_ID` (e.g. a module-registered item) falls back
+ * to the 'more' section.
+ */
+export type SettingsSectionId =
+	| 'workspace'
+	| 'usersAndAccess'
+	| 'ai'
+	| 'infrastructure'
+	| 'sourceControl'
+	| 'advanced'
+	| 'more';
+
+export interface SettingsSection {
+	id: SettingsSectionId;
+	label: string;
+	items: IMenuItem[];
+}
+
+const SECTION_ORDER: SettingsSectionId[] = [
+	'workspace',
+	'usersAndAccess',
+	'ai',
+	'infrastructure',
+	'sourceControl',
+	'advanced',
+	'more',
+];
+
+const SECTION_BY_ITEM_ID: Record<string, SettingsSectionId> = {
+	'settings-usage-and-plan': 'workspace',
+	'settings-personal': 'workspace',
+	'settings-api': 'workspace',
+	'settings-users': 'usersAndAccess',
+	'settings-project-roles': 'usersAndAccess',
+	'settings-sso': 'usersAndAccess',
+	'settings-ldap': 'usersAndAccess',
+	'settings-security': 'usersAndAccess',
+	'settings-ai': 'ai',
+	'settings-n8n-connect': 'ai',
+	'settings-credential-resolvers': 'ai',
+	'settings-workersview': 'infrastructure',
+	'settings-log-streaming': 'infrastructure',
+	'settings-opentelemetry': 'infrastructure',
+	'settings-community-nodes': 'infrastructure',
+	'settings-source-control': 'sourceControl',
+	'settings-external-secrets': 'advanced',
+	'settings-encryption-keys': 'advanced',
+	'settings-migration-report': 'advanced',
+};
+
 export function useSettingsItems() {
 	const router = useRouter();
 	const i18n = useI18n();
@@ -205,5 +258,32 @@ export function useSettingsItems() {
 
 	const visibleSettingsItems = computed(() => settingsItems.value.filter((item) => item.available));
 
-	return { settingsItems: visibleSettingsItems };
+	const sectionLabels: Record<SettingsSectionId, string> = {
+		workspace: i18n.baseText('settings.sections.workspace'),
+		usersAndAccess: i18n.baseText('settings.sections.usersAndAccess'),
+		ai: i18n.baseText('settings.sections.ai'),
+		infrastructure: i18n.baseText('settings.sections.infrastructure'),
+		sourceControl: i18n.baseText('settings.sections.sourceControl'),
+		advanced: i18n.baseText('settings.sections.advanced'),
+		more: i18n.baseText('settings.sections.more'),
+	};
+
+	const settingsSections = computed<SettingsSection[]>(() => {
+		const bySectionId = new Map<SettingsSectionId, IMenuItem[]>();
+
+		visibleSettingsItems.value.forEach((item) => {
+			const sectionId = SECTION_BY_ITEM_ID[item.id] ?? 'more';
+			const items = bySectionId.get(sectionId) ?? [];
+			items.push(item);
+			bySectionId.set(sectionId, items);
+		});
+
+		return SECTION_ORDER.filter((id) => (bySectionId.get(id)?.length ?? 0) > 0).map((id) => ({
+			id,
+			label: sectionLabels[id],
+			items: bySectionId.get(id) ?? [],
+		}));
+	});
+
+	return { settingsItems: visibleSettingsItems, settingsSections };
 }
