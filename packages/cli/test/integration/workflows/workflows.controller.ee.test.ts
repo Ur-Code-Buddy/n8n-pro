@@ -113,7 +113,7 @@ afterEach(() => {
 	jest.clearAllMocks();
 });
 
-describe('router should switch based on flag', () => {
+describe('sharing is always available', () => {
 	let savedWorkflowId: string;
 
 	beforeEach(async () => {
@@ -121,16 +121,7 @@ describe('router should switch based on flag', () => {
 		savedWorkflowId = createWorkflowResponse.body.data.id;
 	});
 
-	test('when sharing is disabled', async () => {
-		license.disable('feat:sharing');
-		await authOwnerAgent
-			.put(`/workflows/${savedWorkflowId}/share`)
-			.send({ shareWithIds: [memberPersonalProject.id] })
-			.expect(403);
-	});
-
-	test('when sharing is enabled', async () => {
-		license.enable('feat:sharing');
+	test('sharing succeeds', async () => {
 		await authOwnerAgent
 			.put(`/workflows/${savedWorkflowId}/share`)
 			.send({ shareWithIds: [memberPersonalProject.id] })

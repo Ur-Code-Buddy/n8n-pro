@@ -65,7 +65,7 @@ import {
 import { Logger } from '@n8n/backend-common';
 import { SsrfProtectionService } from '@n8n/backend-network';
 import { Container, Service } from '@n8n/di';
-import { hasGlobalScope, PROJECT_OWNER_ROLE_SLUG, type Scope } from '@n8n/permissions';
+import { hasGlobalScope, type Scope } from '@n8n/permissions';
 // eslint-disable-next-line n8n-local-rules/misplaced-n8n-typeorm-import
 import { LessThan } from '@n8n/typeorm';
 import {
@@ -102,7 +102,6 @@ import { CredentialsFinderService } from '@/credentials/credentials-finder.servi
 import { CredentialsService } from '@/credentials/credentials.service';
 import { EventService } from '@/events/event.service';
 import { ExecutionPersistence } from '@/executions/execution-persistence';
-import { License } from '@/license';
 import { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import { NodeTypes } from '@/node-types';
 import { DataTableRepository } from '@/modules/data-table/data-table.repository';
@@ -223,7 +222,6 @@ export class InstanceAiAdapterService {
 		private readonly settingsService: InstanceAiSettingsService,
 		private readonly workflowHistoryService: WorkflowHistoryService,
 		private readonly enterpriseWorkflowService: EnterpriseWorkflowService,
-		private readonly license: License,
 		private readonly executionPersistence: ExecutionPersistence,
 		private readonly eventService: EventService,
 		private readonly roleService: RoleService,
@@ -256,7 +254,7 @@ export class InstanceAiAdapterService {
 			webResearchService: this.createWebResearchAdapter(user, searchProxyConfig),
 			workspaceService: this.createWorkspaceAdapter(user),
 			templatesService: this.getTemplatesService(),
-			licenseHints: this.buildLicenseHints(),
+			licenseHints: [],
 			logger: this.logger,
 			nodeTypesProvider: this.nodeTypes,
 			allowSendingParameterValues: this.allowSendingParameterValues,
@@ -272,21 +270,6 @@ export class InstanceAiAdapterService {
 			});
 		}
 		return this.templatesService;
-	}
-
-	private buildLicenseHints(): string[] {
-		const hints: string[] = [];
-		if (!this.license.isLicensed('feat:namedVersions')) {
-			hints.push(
-				'**Named workflow versions** — naming and describing workflow versions (update-workflow-version) is available on the Pro plan and above.',
-			);
-		}
-		if (!this.license.isLicensed('feat:folders')) {
-			hints.push(
-				'**Folders** — organizing workflows into folders (list-folders, create-folder, delete-folder, move-workflow-to-folder) is available on registered Community Edition or paid plans.',
-			);
-		}
-		return hints;
 	}
 
 	private assertInstanceNotReadOnly(resourceType: string) {
@@ -349,7 +332,6 @@ export class InstanceAiAdapterService {
 			enterpriseWorkflowService,
 			executionRepository,
 			executionPersistence,
-			license,
 			allowSendingParameterValues,
 			telemetry,
 		} = this;
@@ -372,7 +354,10 @@ export class InstanceAiAdapterService {
 				});
 
 				return workflows
-					.filter((wf): wf is WorkflowEntity => 'versionId' in wf)
+					.filter(
+						(wf): wf is WorkflowEntity & { hasResolvableCredentials: boolean } =>
+							'versionId' in wf,
+					)
 					.map(
 						(wf): WorkflowSummary => ({
 							id: wf.id,
@@ -596,13 +581,11 @@ export class InstanceAiAdapterService {
 				try {
 					// Enforce credential tamper protection — same guard as the
 					// REST controller (workflows.controller PATCH /:workflowId).
-					if (license.isSharingEnabled()) {
-						updateData = await enterpriseWorkflowService.preventTampering(
-							updateData,
-							saved.id,
-							user,
-						);
-					}
+					updateData = await enterpriseWorkflowService.preventTampering(
+						updateData,
+						saved.id,
+						user,
+					);
 
 					updated = await workflowService.update(user, updateData, saved.id, {
 						source: 'n8n-ai',
@@ -684,13 +667,11 @@ export class InstanceAiAdapterService {
 				try {
 					// Enforce credential tamper protection — same guard as the
 					// REST controller (workflows.controller PATCH /:workflowId).
-					if (license.isSharingEnabled()) {
-						updateData = await enterpriseWorkflowService.preventTampering(
-							updateData,
-							workflowId,
-							user,
-						);
-					}
+					updateData = await enterpriseWorkflowService.preventTampering(
+						updateData,
+						workflowId,
+						user,
+					);
 
 					updated = await workflowService.update(user, updateData, workflowId, {
 						source: 'n8n-ai',
@@ -784,17 +765,13 @@ export class InstanceAiAdapterService {
 				});
 			},
 
-			...(this.license.isLicensed('feat:namedVersions')
-				? {
-						async updateVersion(
-							workflowId: string,
-							versionId: string,
-							data: { name?: string | null; description?: string | null },
-						) {
-							await workflowHistoryService.updateVersionForUser(user, workflowId, versionId, data);
-						},
-					}
-				: {}),
+			async updateVersion(
+				workflowId: string,
+				versionId: string,
+				data: { name?: string | null; description?: string | null },
+			) {
+				await workflowHistoryService.updateVersionForUser(user, workflowId, versionId, data);
+			},
 		};
 	}
 
@@ -810,7 +787,6 @@ export class InstanceAiAdapterService {
 			executionRepository,
 			nodeTypes,
 			allowSendingParameterValues,
-			license,
 			roleService,
 			telemetry,
 		} = this;
@@ -848,17 +824,13 @@ export class InstanceAiAdapterService {
 			async list(options) {
 				const scope: Scope = 'workflow:read';
 
-				let sharingOptions: ExecutionSummaries.RangeQuery['sharingOptions'];
-				if (license.isSharingEnabled()) {
-					const projectRoles = await roleService.rolesWithScope('project', [scope]);
-					const workflowRoles = await roleService.rolesWithScope('workflow', [scope]);
-					sharingOptions = { scopes: [scope], projectRoles, workflowRoles };
-				} else {
-					sharingOptions = {
-						workflowRoles: ['workflow:owner'],
-						projectRoles: [PROJECT_OWNER_ROLE_SLUG],
-					};
-				}
+				const projectRoles = await roleService.rolesWithScope('project', [scope]);
+				const workflowRoles = await roleService.rolesWithScope('workflow', [scope]);
+				const sharingOptions: ExecutionSummaries.RangeQuery['sharingOptions'] = {
+					scopes: [scope],
+					projectRoles,
+					workflowRoles,
+				};
 
 				const query: ExecutionSummaries.RangeQuery = {
 					kind: 'range' as const,
@@ -2291,65 +2263,61 @@ export class InstanceAiAdapterService {
 				}));
 			},
 
-			...(this.license.isLicensed('feat:folders')
-				? {
-						async listFolders(projectId: string): Promise<FolderSummary[]> {
-							await assertProjectScope(['folder:list'], projectId);
-							const [folders] = await folderService.getManyAndCount(projectId, { take: 100 });
-							return (
-								folders as Array<{ id: string; name: string; parentFolderId: string | null }>
-							).map((f) => ({
-								id: f.id,
-								name: f.name,
-								parentFolderId: f.parentFolderId,
-							}));
-						},
+			async listFolders(projectId: string): Promise<FolderSummary[]> {
+				await assertProjectScope(['folder:list'], projectId);
+				const [folders] = await folderService.getManyAndCount(projectId, { take: 100 });
+				return (
+					folders as Array<{ id: string; name: string; parentFolderId: string | null }>
+				).map((f) => ({
+					id: f.id,
+					name: f.name,
+					parentFolderId: f.parentFolderId,
+				}));
+			},
 
-						async createFolder(
-							name: string,
-							projectId: string,
-							parentFolderId?: string,
-						): Promise<FolderSummary> {
-							assertNotReadOnly('folders');
-							await assertProjectScope(['folder:create'], projectId);
-							const folder = await folderService.createFolder(
-								{ name, parentFolderId: parentFolderId ?? undefined },
-								projectId,
-							);
-							return {
-								id: folder.id,
-								name: folder.name,
-								parentFolderId: folder.parentFolderId ?? null,
-							};
-						},
+			async createFolder(
+				name: string,
+				projectId: string,
+				parentFolderId?: string,
+			): Promise<FolderSummary> {
+				assertNotReadOnly('folders');
+				await assertProjectScope(['folder:create'], projectId);
+				const folder = await folderService.createFolder(
+					{ name, parentFolderId: parentFolderId ?? undefined },
+					projectId,
+				);
+				return {
+					id: folder.id,
+					name: folder.name,
+					parentFolderId: folder.parentFolderId ?? null,
+				};
+			},
 
-						async deleteFolder(
-							folderId: string,
-							projectId: string,
-							transferToFolderId?: string,
-						): Promise<void> {
-							assertNotReadOnly('folders');
-							await assertProjectScope(['folder:delete'], projectId);
-							await folderService.deleteFolder(user, folderId, projectId, {
-								transferToFolderId: transferToFolderId ?? undefined,
-							});
-						},
+			async deleteFolder(
+				folderId: string,
+				projectId: string,
+				transferToFolderId?: string,
+			): Promise<void> {
+				assertNotReadOnly('folders');
+				await assertProjectScope(['folder:delete'], projectId);
+				await folderService.deleteFolder(user, folderId, projectId, {
+					transferToFolderId: transferToFolderId ?? undefined,
+				});
+			},
 
-						async moveWorkflowToFolder(workflowId: string, folderId: string): Promise<void> {
-							assertNotReadOnly('workflows');
-							const workflow = await workflowFinderService.findWorkflowForUser(workflowId, user, [
-								'workflow:update',
-							]);
-							if (!workflow) {
-								throw new Error(`Workflow ${workflowId} not found or not accessible`);
-							}
-							await workflowService.update(user, workflow, workflowId, {
-								parentFolderId: folderId,
-								source: 'n8n-ai',
-							});
-						},
-					}
-				: {}),
+			async moveWorkflowToFolder(workflowId: string, folderId: string): Promise<void> {
+				assertNotReadOnly('workflows');
+				const workflow = await workflowFinderService.findWorkflowForUser(workflowId, user, [
+					'workflow:update',
+				]);
+				if (!workflow) {
+					throw new Error(`Workflow ${workflowId} not found or not accessible`);
+				}
+				await workflowService.update(user, workflow, workflowId, {
+					parentFolderId: folderId,
+					source: 'n8n-ai',
+				});
+			},
 
 			async tagWorkflow(workflowId: string, tagNames: string[]): Promise<string[]> {
 				assertNotReadOnly('workflows');

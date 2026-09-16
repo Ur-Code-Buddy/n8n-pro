@@ -1,12 +1,11 @@
 import type { AiInsightsPayload, AiInsightsResponse } from '@n8n/api-types';
 import { aiInsightsResponseSchema } from '@n8n/api-types';
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import type { TestRun, User } from '@n8n/db';
 import { EvaluationCollectionRepository } from '@n8n/db';
 import { Service } from '@n8n/di';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
 import { Telemetry } from '@/telemetry';
 
@@ -39,8 +38,8 @@ type RunSummary = {
  *
  *  1. The endpoint contract is concrete and the frontend (PR 2b) can build
  *     against real responses.
- *  2. Caching, telemetry, license gating, and the response envelope are
- *     all exercised by tests.
+ *  2. Caching, telemetry, and the response envelope are all exercised by
+ *     tests.
  *  3. A focused follow-up wires the actual LLM provider without re-doing
  *     plumbing.
  *
@@ -51,7 +50,6 @@ type RunSummary = {
 export class EvalInsightsService {
 	constructor(
 		private readonly collectionRepo: EvaluationCollectionRepository,
-		private readonly licenseState: LicenseState,
 		private readonly telemetry: Telemetry,
 		private readonly logger: Logger,
 	) {}
@@ -62,21 +60,14 @@ export class EvalInsightsService {
 		collectionId: string,
 		options: { forceRegenerate?: boolean } = {},
 	): Promise<AiInsightsResponse> {
-		// 1. License gate. AI Assistant entitlement is the same one gating
-		// the rest of the AI feature surface; off-license tenants don't get
-		// insights at all.
-		if (!this.licenseState.isAiAssistantLicensed()) {
-			throw new ForbiddenError('AI Assistant license required for eval-collection insights');
-		}
-
-		// 2. Load collection + runs. Single round-trip for the runs we'll
+		// 1. Load collection + runs. Single round-trip for the runs we'll
 		// summarise.
 		const detail = await this.collectionRepo.getDetailByIdAndWorkflowId(collectionId, workflowId);
 		if (!detail) {
 			throw new NotFoundError('Collection not found');
 		}
 
-		// 3. Cache hit short-circuit. Cached payload is the full envelope so
+		// 2. Cache hit short-circuit. Cached payload is the full envelope so
 		// `status` / `generatedAt` / `modelUsed` round-trip unchanged.
 		if (!options.forceRegenerate && detail.collection.insightsCache) {
 			const cached = detail.collection.insightsCache as AiInsightsResponse;
@@ -89,7 +80,7 @@ export class EvalInsightsService {
 			});
 		}
 
-		// 4. Need at least two completed runs with metrics to say anything
+		// 3. Need at least two completed runs with metrics to say anything
 		// useful. Compare-of-one isn't a comparison.
 		//
 		// Labels (A/B/C) are derived from the run's index in the *full*

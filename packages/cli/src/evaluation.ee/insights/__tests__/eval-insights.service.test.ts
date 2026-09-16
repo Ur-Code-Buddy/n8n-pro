@@ -1,10 +1,9 @@
 import type { AiInsightsResponse } from '@n8n/api-types';
-import type { LicenseState, Logger } from '@n8n/backend-common';
+import type { Logger } from '@n8n/backend-common';
 import type { EvaluationCollection, EvaluationCollectionRepository, TestRun, User } from '@n8n/db';
 import { mock } from 'jest-mock-extended';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
 import type { Telemetry } from '@/telemetry';
 
@@ -45,27 +44,15 @@ function makeRun(over: Partial<TestRun> = {}): TestRun {
 describe('EvalInsightsService', () => {
 	let service: EvalInsightsService;
 	let collectionRepo: jest.Mocked<EvaluationCollectionRepository>;
-	let licenseState: jest.Mocked<LicenseState>;
 	let telemetry: jest.Mocked<Telemetry>;
 	let logger: jest.Mocked<Logger>;
 
 	beforeEach(() => {
 		collectionRepo = mock<EvaluationCollectionRepository>();
-		licenseState = mock<LicenseState>();
 		telemetry = mock<Telemetry>();
 		logger = mock<Logger>();
 
-		licenseState.isAiAssistantLicensed.mockReturnValue(true);
-
-		service = new EvalInsightsService(collectionRepo, licenseState, telemetry, logger);
-	});
-
-	describe('license gating', () => {
-		it('rejects with 403 when AI Assistant license is off', async () => {
-			licenseState.isAiAssistantLicensed.mockReturnValueOnce(false);
-			await expect(service.generateInsights(user, 'wf-1', 'col-1')).rejects.toThrow(ForbiddenError);
-			expect(collectionRepo.getDetailByIdAndWorkflowId).not.toHaveBeenCalled();
-		});
+		service = new EvalInsightsService(collectionRepo, telemetry, logger);
 	});
 
 	describe('collection lookup', () => {

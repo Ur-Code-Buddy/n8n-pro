@@ -1,8 +1,6 @@
-import { LicenseState } from '@n8n/backend-common';
 import { createWorkflow, shareWorkflowWithUsers, testDb } from '@n8n/backend-test-utils';
 import { GLOBAL_MEMBER_ROLE, GLOBAL_OWNER_ROLE, type User } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 
 import { ProjectService } from '@/services/project.service.ee';
 import { WorkflowSharingService } from '@/workflows/workflow-sharing.service';
@@ -20,10 +18,6 @@ beforeAll(async () => {
 	owner = await createUser({ role: GLOBAL_OWNER_ROLE });
 	member = await createUser({ role: GLOBAL_MEMBER_ROLE });
 	anotherMember = await createUser({ role: GLOBAL_MEMBER_ROLE });
-	const licenseMock = mock<LicenseState>();
-	licenseMock.isSharingLicensed.mockReturnValue(true);
-	licenseMock.getMaxTeamProjects.mockReturnValue(-1);
-	Container.set(LicenseState, licenseMock);
 	workflowSharingService = Container.get(WorkflowSharingService);
 	projectService = Container.get(ProjectService);
 });

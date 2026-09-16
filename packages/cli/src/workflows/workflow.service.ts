@@ -1,5 +1,5 @@
 import { UpdateWorkflowHistoryVersionDto } from '@n8n/api-types';
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
 import type { User, ListQueryDb, WorkflowFolderUnionFull, WorkflowHistory } from '@n8n/db';
 import {
@@ -94,7 +94,6 @@ export class WorkflowService {
 		private readonly workflowValidationService: WorkflowValidationService,
 		private readonly nodeTypes: NodeTypes,
 		private readonly webhookService: WebhookService,
-		private readonly licenseState: LicenseState,
 		private readonly projectRepository: ProjectRepository,
 		private readonly redactionEnforcementService: RedactionEnforcementService,
 	) {}
@@ -190,16 +189,16 @@ export class WorkflowService {
 			workflows = this.mergeProcessedWorkflows(workflowsAndFolders, workflows);
 		}
 
-		// Add hasResolvableCredentials if dynamic credentials feature is licensed
-		if (this.licenseState.isDynamicCredentialsLicensed()) {
-			return {
-				workflows: await this.addResolvableCredentialsFlag(workflows),
-				count,
-			};
-		}
+		// Only merge in the resolvable-credentials flag when the caller didn't
+		// request a narrower field selection that excludes it, so `select=[...]`
+		// queries keep returning exactly the requested shape.
+		const shouldAddResolvableCredentialsFlag =
+			!options?.select || options.select.hasResolvableCredentials === true;
 
 		return {
-			workflows,
+			workflows: shouldAddResolvableCredentialsFlag
+				? await this.addResolvableCredentialsFlag(workflows)
+				: workflows,
 			count,
 		};
 	}
@@ -363,14 +362,12 @@ export class WorkflowService {
 		// already resolved to IDs before the check.
 		// Loaded lazily to avoid a circular import (workflow.service.ee pulls in
 		// folder/project services which import this module).
-		if (this.licenseState.isSharingLicensed()) {
-			const { EnterpriseWorkflowService } = await import('./workflow.service.ee');
-			await Container.get(EnterpriseWorkflowService).preventTampering(
-				workflowUpdateData,
-				workflowId,
-				user,
-			);
-		}
+		const { EnterpriseWorkflowService } = await import('./workflow.service.ee');
+		await Container.get(EnterpriseWorkflowService).preventTampering(
+			workflowUpdateData,
+			workflowId,
+			user,
+		);
 
 		// Update the workflow's version when changing nodes, connections, or nodeGroups
 		const hasNodesKey = 'nodes' in workflowUpdateData;
@@ -411,15 +408,6 @@ export class WorkflowService {
 			nodes: workflowUpdateData.nodes ?? workflow.nodes,
 			nodeGroups: workflowUpdateData.nodeGroups ?? workflow.nodeGroups,
 		});
-
-		// Strip redactionPolicy if instance lacks data-redaction license
-		if (
-			workflowUpdateData.settings?.redactionPolicy !== undefined &&
-			workflowUpdateData.settings.redactionPolicy !== workflow.settings?.redactionPolicy &&
-			!this.licenseState.isDataRedactionLicensed()
-		) {
-			delete workflowUpdateData.settings.redactionPolicy;
-		}
 
 		// Strip redactionPolicy if user lacks the required directional scope
 		if (

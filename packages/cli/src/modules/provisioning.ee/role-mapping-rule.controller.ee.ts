@@ -4,7 +4,6 @@ import {
 	MoveRoleMappingRuleDto,
 	PatchRoleMappingRuleDto,
 } from '@n8n/api-types';
-import { LicenseState } from '@n8n/backend-common';
 import { AuthenticatedRequest } from '@n8n/db';
 import {
 	Body,
@@ -31,7 +30,6 @@ import { RoleMappingRuleService } from './role-mapping-rule.service.ee';
 export class RoleMappingRuleController {
 	constructor(
 		private readonly roleMappingRuleService: RoleMappingRuleService,
-		private readonly licenseState: LicenseState,
 		private readonly eventService: EventService,
 	) {}
 
@@ -39,13 +37,9 @@ export class RoleMappingRuleController {
 	@GlobalScope('roleMappingRule:list')
 	async list(
 		_req: AuthenticatedRequest,
-		res: Response,
+		_res: Response,
 		@Query query: ListRoleMappingRuleQueryDto,
-	): Promise<RoleMappingRuleListResponse | Response> {
-		if (!this.licenseState.isProvisioningLicensed()) {
-			return res.status(403).json({ message: 'Provisioning is not licensed' });
-		}
-
+	): Promise<RoleMappingRuleListResponse> {
 		return await this.roleMappingRuleService.list(query);
 	}
 
@@ -53,13 +47,9 @@ export class RoleMappingRuleController {
 	@GlobalScope('roleMappingRule:create')
 	async create(
 		req: AuthenticatedRequest,
-		res: Response,
+		_res: Response,
 		@Body body: CreateRoleMappingRuleDto,
-	): Promise<RoleMappingRuleResponse | Response> {
-		if (!this.licenseState.isProvisioningLicensed()) {
-			return res.status(403).json({ message: 'Provisioning is not licensed' });
-		}
-
+	): Promise<RoleMappingRuleResponse> {
 		const result = await this.roleMappingRuleService.create(body);
 
 		this.eventService.emit('role-mapping-rule-created', {
@@ -77,14 +67,10 @@ export class RoleMappingRuleController {
 	@GlobalScope('roleMappingRule:update')
 	async move(
 		req: AuthenticatedRequest,
-		res: Response,
+		_res: Response,
 		@Body body: MoveRoleMappingRuleDto,
 		@Param('id') id: string,
-	): Promise<RoleMappingRuleResponse | Response> {
-		if (!this.licenseState.isProvisioningLicensed()) {
-			return res.status(403).json({ message: 'Provisioning is not licensed' });
-		}
-
+	): Promise<RoleMappingRuleResponse> {
 		const result = await this.roleMappingRuleService.move(id, body.targetIndex);
 
 		this.eventService.emit('role-mapping-rule-updated', {
@@ -102,14 +88,10 @@ export class RoleMappingRuleController {
 	// @Body at param index 2 (same as `create`) so controller-registry applies Zod to PatchRoleMappingRuleDto; @Param before @Body skips body validation.
 	async patch(
 		req: AuthenticatedRequest,
-		res: Response,
+		_res: Response,
 		@Body body: PatchRoleMappingRuleDto,
 		@Param('id') id: string,
-	): Promise<RoleMappingRuleResponse | Response> {
-		if (!this.licenseState.isProvisioningLicensed()) {
-			return res.status(403).json({ message: 'Provisioning is not licensed' });
-		}
-
+	): Promise<RoleMappingRuleResponse> {
 		const result = await this.roleMappingRuleService.patch(id, body);
 
 		this.eventService.emit('role-mapping-rule-updated', {
@@ -126,13 +108,9 @@ export class RoleMappingRuleController {
 	@GlobalScope('roleMappingRule:delete')
 	async delete(
 		req: AuthenticatedRequest,
-		res: Response,
+		_res: Response,
 		@Param('id') id: string,
-	): Promise<{ success: true } | Response> {
-		if (!this.licenseState.isProvisioningLicensed()) {
-			return res.status(403).json({ message: 'Provisioning is not licensed' });
-		}
-
+	): Promise<{ success: true }> {
 		const { ruleType } = await this.roleMappingRuleService.delete(id);
 
 		this.eventService.emit('role-mapping-rule-deleted', {

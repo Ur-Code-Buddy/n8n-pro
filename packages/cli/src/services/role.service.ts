@@ -1,6 +1,6 @@
 import type { RoleAssignmentsResponse, RoleProjectMembersResponse } from '@n8n/api-types';
 import { CreateRoleDto, UpdateRoleDto } from '@n8n/api-types';
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import {
 	CredentialsEntity,
 	SharedCredentials,
@@ -13,7 +13,6 @@ import {
 	Role,
 	Scope as DBScope,
 	ScopeRepository,
-	GLOBAL_ADMIN_ROLE,
 } from '@n8n/db';
 import type { EntityManager } from '@n8n/db';
 import { Service } from '@n8n/di';
@@ -23,15 +22,7 @@ import type {
 	AssignableProjectRole,
 	RoleNamespace,
 } from '@n8n/permissions';
-import {
-	combineScopes,
-	getAuthPrincipalScopes,
-	getRoleScopes,
-	isBuiltInRole,
-	PROJECT_ADMIN_ROLE_SLUG,
-	PROJECT_EDITOR_ROLE_SLUG,
-	PROJECT_VIEWER_ROLE_SLUG,
-} from '@n8n/permissions';
+import { combineScopes, getAuthPrincipalScopes, getRoleScopes } from '@n8n/permissions';
 import { UnexpectedError, UserError } from 'n8n-workflow';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
@@ -43,7 +34,6 @@ import { RoleCacheService } from './role-cache.service';
 @Service()
 export class RoleService {
 	constructor(
-		private readonly license: LicenseState,
 		private readonly roleRepository: RoleRepository,
 		private readonly scopeRepository: ScopeRepository,
 		private readonly roleCacheService: RoleCacheService,
@@ -352,28 +342,9 @@ export class RoleService {
 		return await this.roleCacheService.getRolesWithAllScopes(namespace, scopes, trx);
 	}
 
-	isRoleLicensed(role: AssignableProjectRole) {
+	isRoleLicensed(_role: AssignableProjectRole) {
 		// TODO: move this info into FrontendSettings
-
-		if (!isBuiltInRole(role)) {
-			// This is a custom role, therefore we need to check if
-			// custom roles are licensed
-			return this.license.isCustomRolesLicensed();
-		}
-
-		switch (role) {
-			case PROJECT_ADMIN_ROLE_SLUG:
-				return this.license.isProjectRoleAdminLicensed();
-			case PROJECT_EDITOR_ROLE_SLUG:
-				return this.license.isProjectRoleEditorLicensed();
-			case PROJECT_VIEWER_ROLE_SLUG:
-				return this.license.isProjectRoleViewerLicensed();
-			case GLOBAL_ADMIN_ROLE.slug:
-				return this.license.isAdvancedPermissionsLicensed();
-			default:
-				// TODO: handle custom roles licensing
-				return true;
-		}
+		return true;
 	}
 
 	async addScopesToRole(roleSlug: Role['slug'], scopeSlugs: string[]): Promise<void> {

@@ -1,6 +1,5 @@
 import type { CreateProjectDto, ProjectType, UpdateProjectDto } from '@n8n/api-types';
-import { LicenseState, ModuleRegistry } from '@n8n/backend-common';
-import { UNLIMITED_LICENSE_QUOTA } from '@n8n/constants';
+import { ModuleRegistry } from '@n8n/backend-common';
 import {
 	type User,
 	Project,
@@ -26,7 +25,6 @@ import {
 import type { FindOptionsWhere, EntityManager } from '@n8n/typeorm';
 // eslint-disable-next-line n8n-local-rules/misplaced-n8n-typeorm-import
 import { In } from '@n8n/typeorm';
-import { UserError } from 'n8n-workflow';
 
 import { OwnershipService } from './ownership.service';
 import { RoleService } from './role.service';
@@ -34,20 +32,6 @@ import { RoleService } from './role.service';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
-
-export class TeamProjectOverQuotaError extends UserError {
-	constructor(limit: number) {
-		super(
-			`Attempted to create a new project but quota is already exhausted. You may have a maximum of ${limit} team projects.`,
-		);
-	}
-}
-
-export class UnlicensedProjectRoleError extends UserError {
-	constructor(role: AssignableProjectRole) {
-		super(`Your instance is not licensed to use role "${role}".`);
-	}
-}
 
 class ProjectNotFoundError extends NotFoundError {
 	constructor(projectId: string) {
@@ -72,7 +56,6 @@ export class ProjectService {
 		private readonly projectRelationRepository: ProjectRelationRepository,
 		private readonly roleService: RoleService,
 		private readonly sharedCredentialsRepository: SharedCredentialsRepository,
-		private readonly licenseState: LicenseState,
 		private readonly moduleRegistry: ModuleRegistry,
 		private readonly ownershipService: OwnershipService,
 	) {}
@@ -343,14 +326,6 @@ export class ProjectService {
 		data: CreateProjectDto,
 		trx: EntityManager,
 	) {
-		const limit = this.licenseState.getMaxTeamProjects();
-		if (limit !== UNLIMITED_LICENSE_QUOTA) {
-			const teamProjectCount = await trx.count(Project, { where: { type: 'team' } });
-			if (teamProjectCount >= limit) {
-				throw new TeamProjectOverQuotaError(limit);
-			}
-		}
-
 		const project = await trx.save(
 			Project,
 			this.projectRepository.create({ ...data, type: 'team', creatorId: adminUser.id }),
@@ -409,8 +384,6 @@ export class ProjectService {
 		newRelations: Array<{ role: AssignableProjectRole; userId: string }>;
 	}> {
 		const project = await this.getTeamProjectWithRelations(projectId);
-		this.checkRolesLicensed(project, relations);
-
 		// Check that all roles exist
 		await this.roleService.checkRolesExist(
 			relations.map((r) => r.role),
@@ -463,8 +436,6 @@ export class ProjectService {
 		relations: Array<{ userId: string; role: AssignableProjectRole }>,
 	) {
 		const project = await this.getTeamProjectWithRelations(projectId);
-		this.checkRolesLicensed(project, relations);
-
 		// Check that project role exists
 		await this.roleService.checkRolesExist(
 			relations.map((r) => r.role),
@@ -507,8 +478,6 @@ export class ProjectService {
 		}>;
 	}> {
 		const project = await this.getTeamProjectWithRelations(projectId);
-		this.checkRolesLicensed(project, relations);
-
 		// Validate roles exist
 		await this.roleService.checkRolesExist(
 			relations.map((r) => r.role),
@@ -558,21 +527,6 @@ export class ProjectService {
 		return project;
 	}
 
-	/** Check to see if the instance is licensed to use all roles provided */
-	private checkRolesLicensed(
-		project: Project,
-		relations: Array<{ role: AssignableProjectRole; userId: string }>,
-	) {
-		for (const { role, userId } of relations) {
-			const existing = project.projectRelations.find((pr) => pr.userId === userId);
-			// We don't throw an error if the user already exists with that role so
-			// existing projects continue working as is.
-			if (existing?.role?.slug !== role && !this.roleService.isRoleLicensed(role)) {
-				throw new UnlicensedProjectRoleError(role);
-			}
-		}
-	}
-
 	private isUserProjectOwner(project: Project, userId: string) {
 		return project.projectRelations.some(
 			(pr) => pr.userId === userId && pr.role.slug === PROJECT_OWNER_ROLE_SLUG,
@@ -610,13 +564,6 @@ export class ProjectService {
 		const projectUserExists = project.projectRelations.some((r) => r.userId === userId);
 		if (!projectUserExists) {
 			throw new ProjectNotFoundError(projectId);
-		}
-
-		// License check: only allow change to roles that are licensed
-		const currentRelation = project.projectRelations.find((r) => r.userId === userId);
-		const currentRole = currentRelation?.role?.slug;
-		if (currentRole !== role && !this.roleService.isRoleLicensed(role)) {
-			throw new UnlicensedProjectRoleError(role);
 		}
 
 		const proxy = await this.connectionStatusProxy;

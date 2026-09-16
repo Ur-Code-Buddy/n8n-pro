@@ -8,7 +8,6 @@ import { InvalidConcurrencyLimitError } from '@/errors/invalid-concurrency-limit
 import { UnknownExecutionModeError } from '@/errors/unknown-execution-mode.error';
 import { resolveEvaluationConcurrencyLimit } from '@/evaluation.ee/evaluation-concurrency.helper';
 import { EventService } from '@/events/event.service';
-import { License } from '@/license';
 import { Telemetry } from '@/telemetry';
 
 import { ConcurrencyQueue } from './concurrency-queue';
@@ -38,8 +37,8 @@ export class ConcurrencyControlService {
 	// The eval queue is built eagerly when the env-resolved limit is already
 	// known at boot (operator set `N8N_CONCURRENCY_EVALUATION_LIMIT` to a
 	// positive value, or explicit `-1` for unlimited). When the env is
-	// unset and the cap comes from the license tier, we defer to first use
-	// because `License.init()` resolves after the DI graph is built.
+	// unset, the resolver returns unlimited, so this stays deferred to
+	// first use only to keep the two code paths symmetric.
 	private evalQueueResolved = false;
 
 	constructor(
@@ -48,7 +47,6 @@ export class ConcurrencyControlService {
 		private readonly telemetry: Telemetry,
 		private readonly eventService: EventService,
 		private readonly globalConfig: GlobalConfig,
-		private readonly license: License,
 	) {
 		this.logger = this.logger.scoped('concurrency');
 
@@ -76,8 +74,6 @@ export class ConcurrencyControlService {
 		// Eager eval queue when the config already carries a positive cap.
 		// In that case the operator has explicitly set the env var, so
 		// nothing else can lift the value and we don't need the lazy path.
-		// Limit -1 (the env-unset default) is deferred — the license tier
-		// may raise it to 3/5 once `License.init()` resolves.
 		if (normalisedEvaluation > 0) {
 			const queue = new ConcurrencyQueue(normalisedEvaluation);
 			this.queues.set('evaluation', queue);
@@ -104,11 +100,8 @@ export class ConcurrencyControlService {
 
 	/**
 	 * Resolve the evaluation concurrency cap lazily on first use when the
-	 * constructor couldn't determine it from the env config alone. The
-	 * resolver follows env override → license-tier default; the license is
-	 * not guaranteed active at DI-construction time, so we defer until the
-	 * first eval execution hits `throttle`. Idempotent; subsequent calls
-	 * are a no-op.
+	 * constructor couldn't determine it from the env config alone.
+	 * Idempotent; subsequent calls are a no-op.
 	 */
 	private ensureEvalQueueResolved(): void {
 		if (this.evalQueueResolved) return;
@@ -117,7 +110,7 @@ export class ConcurrencyControlService {
 		if (this.globalConfig.executions.mode === 'queue') return;
 
 		const normalised = this.normaliseLimit(
-			resolveEvaluationConcurrencyLimit(this.globalConfig.executions, this.license),
+			resolveEvaluationConcurrencyLimit(this.globalConfig.executions),
 		);
 		this.limits.set('evaluation', normalised);
 

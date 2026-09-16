@@ -9,7 +9,6 @@ import type * as fs from 'node:fs';
 import type * as fsp from 'node:fs/promises';
 import type { IUser, INodeTypeDescription, ITelemetryTrackProperties } from 'n8n-workflow';
 
-import type { License } from '@/license';
 import { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import type { Push } from '@/push';
 import { WorkflowBuilderService } from '@/services/ai-workflow-builder.service';
@@ -40,7 +39,6 @@ describe('WorkflowBuilderService', () => {
 	let service: WorkflowBuilderService;
 	let mockLoadNodesAndCredentials: LoadNodesAndCredentials;
 	let mockNodeTypeDescriptions: INodeTypeDescription[];
-	let mockLicense: License;
 	let mockConfig: GlobalConfig;
 	let mockLogger: Logger;
 	let mockUrlService: UrlService;
@@ -85,7 +83,6 @@ describe('WorkflowBuilderService', () => {
 			addPostProcessor: jest.fn(),
 		} as unknown as LoadNodesAndCredentials;
 
-		mockLicense = mock<License>();
 		mockConfig = mock<GlobalConfig>();
 		mockLogger = mock<Logger>();
 		mockUrlService = mock<UrlService>();
@@ -104,8 +101,6 @@ describe('WorkflowBuilderService', () => {
 
 		// Setup default mocks
 		(mockUrlService.getInstanceBaseUrl as jest.Mock).mockReturnValue('https://instance.test.com');
-		(mockLicense.loadCertStr as jest.Mock).mockResolvedValue('test-cert');
-		(mockLicense.getConsumerId as jest.Mock).mockReturnValue('test-consumer-id');
 		(mockInstanceSettings.instanceId as unknown) = 'test-instance-id';
 		mockConfig.aiAssistant = { baseUrl: '' };
 
@@ -115,7 +110,6 @@ describe('WorkflowBuilderService', () => {
 
 		service = new WorkflowBuilderService(
 			mockLoadNodesAndCredentials,
-			mockLicense,
 			mockConfig,
 			mockLogger,
 			mockUrlService,
@@ -193,8 +187,8 @@ describe('WorkflowBuilderService', () => {
 			await generator.next();
 
 			expect(MockedAiAssistantClient).toHaveBeenCalledWith({
-				licenseCert: 'test-cert',
-				consumerId: 'test-consumer-id',
+				licenseCert: '',
+				consumerId: 'unknown',
 				baseUrl: 'https://ai-assistant.test.com',
 				n8nVersion: expect.any(String),
 				instanceId: 'test-instance-id',
@@ -567,91 +561,6 @@ describe('WorkflowBuilderService', () => {
 		});
 	});
 
-	describe('license certificate refresh', () => {
-		it('should register for license certificate updates when client is created', async () => {
-			mockConfig.aiAssistant.baseUrl = 'https://ai-assistant.test.com';
-
-			const mockPayload = {
-				message: 'test message',
-				id: '12345',
-				workflowContext: {},
-			};
-
-			const mockChatGenerator = (async function* () {
-				yield { messages: ['response'] };
-			})();
-
-			const mockAiService = mock<AiWorkflowBuilderService>();
-			(mockAiService.chat as jest.Mock).mockReturnValue(mockChatGenerator);
-			MockedAiWorkflowBuilderService.mockImplementation(() => mockAiService);
-
-			const generator = service.chat(mockPayload, mockUser);
-			await generator.next();
-
-			expect(mockLicense.onCertRefresh).toHaveBeenCalledWith(expect.any(Function));
-		});
-
-		it('should update client license cert when callback is invoked', async () => {
-			mockConfig.aiAssistant.baseUrl = 'https://ai-assistant.test.com';
-
-			const mockPayload = {
-				message: 'test message',
-				id: '12345',
-				workflowContext: {},
-			};
-
-			const mockChatGenerator = (async function* () {
-				yield { messages: ['response'] };
-			})();
-
-			const mockAiService = mock<AiWorkflowBuilderService>();
-			(mockAiService.chat as jest.Mock).mockReturnValue(mockChatGenerator);
-			MockedAiWorkflowBuilderService.mockImplementation(() => mockAiService);
-
-			// Capture the callback passed to onCertRefresh
-			let capturedCallback: ((cert: string) => void) | undefined;
-			(mockLicense.onCertRefresh as jest.Mock).mockImplementation((cb: (cert: string) => void) => {
-				capturedCallback = cb;
-				return () => {};
-			});
-
-			const generator = service.chat(mockPayload, mockUser);
-			await generator.next();
-
-			expect(capturedCallback).toBeDefined();
-
-			// Get the mocked client instance
-			const mockClientInstance = MockedAiAssistantClient.mock.instances[0];
-
-			// Invoke the callback with a new cert
-			capturedCallback!('new-cert-value');
-
-			expect(mockClientInstance.updateLicenseCert).toHaveBeenCalledWith('new-cert-value');
-		});
-
-		it('should not register for license updates when no baseUrl is configured', async () => {
-			mockConfig.aiAssistant.baseUrl = '';
-
-			const mockPayload = {
-				message: 'test message',
-				id: '12345',
-				workflowContext: {},
-			};
-
-			const mockChatGenerator = (async function* () {
-				yield { messages: ['response'] };
-			})();
-
-			const mockAiService = mock<AiWorkflowBuilderService>();
-			(mockAiService.chat as jest.Mock).mockReturnValue(mockChatGenerator);
-			MockedAiWorkflowBuilderService.mockImplementation(() => mockAiService);
-
-			const generator = service.chat(mockPayload, mockUser);
-			await generator.next();
-
-			expect(mockLicense.onCertRefresh).not.toHaveBeenCalled();
-		});
-	});
 
 	describe('refreshNodeTypes', () => {
 		it('should call updateNodeTypes on the existing service', async () => {
@@ -839,10 +748,6 @@ describe('WorkflowBuilderService - node type loading', () => {
 
 		const builderService = new WorkflowBuilderService(
 			loadNodesAndCredentials,
-			mock<License>({
-				loadCertStr: jest.fn().mockResolvedValue('cert'),
-				getConsumerId: jest.fn().mockReturnValue('consumer'),
-			}),
 			mock<GlobalConfig>({ aiAssistant: { baseUrl: '' } }),
 			mock(),
 			mock<UrlService>({ getInstanceBaseUrl: jest.fn().mockReturnValue('http://localhost') }),

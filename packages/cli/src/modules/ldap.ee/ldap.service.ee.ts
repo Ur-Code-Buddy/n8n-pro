@@ -1,4 +1,4 @@
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
 import type { LdapConfig } from '@n8n/constants';
 import { LDAP_FEATURE_NAME } from '@n8n/constants';
@@ -65,7 +65,6 @@ export class LdapService implements IPasswordAuthHandler<User> {
 		private readonly settingsRepository: SettingsRepository,
 		private readonly cipher: Cipher,
 		private readonly eventService: EventService,
-		private readonly licenseState: LicenseState,
 	) {}
 
 	async init() {
@@ -534,8 +533,6 @@ export class LdapService implements IPasswordAuthHandler<User> {
 	}
 
 	async handleLogin(loginId: string, password: string): Promise<User | undefined> {
-		if (!this.licenseState.isLdapLicensed()) return undefined;
-
 		if (!this.config.loginEnabled) return undefined;
 
 		const { loginIdAttribute, userFilter } = this.config;

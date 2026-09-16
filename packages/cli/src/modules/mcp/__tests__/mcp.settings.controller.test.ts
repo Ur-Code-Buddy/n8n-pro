@@ -216,7 +216,7 @@ describe('McpSettingsController', () => {
 			const res = createRes();
 			const mockWorkflows = [createWorkflow({ id: 'wf-1' }), createWorkflow({ id: 'wf-2' })];
 
-			workflowService.getMany.mockResolvedValue({ workflows: mockWorkflows, count: 2 });
+			workflowService.getMany.mockResolvedValue({ workflows: mockWorkflows, count: 2 } as any);
 
 			await controller.getMcpEligibleWorkflows(req, res);
 
@@ -240,7 +240,7 @@ describe('McpSettingsController', () => {
 			const res = createRes();
 			const mockWorkflows = [createWorkflow({ id: 'wf-1' }), createWorkflow({ id: 'wf-2' })];
 
-			workflowService.getMany.mockResolvedValue({ workflows: mockWorkflows, count: 2 });
+			workflowService.getMany.mockResolvedValue({ workflows: mockWorkflows, count: 2 } as any);
 
 			await controller.getMcpEligibleWorkflows(req, res);
 

@@ -1112,7 +1112,6 @@ import type { DataTableService } from '@/modules/data-table/data-table.service';
 import type { SourceControlPreferencesService } from '@/modules/source-control.ee/source-control-preferences.service.ee';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
 import type { WorkflowService } from '@/workflows/workflow.service';
-import type { License } from '@/license';
 import type { RoleService } from '@/services/role.service';
 
 import { InstanceAiAdapterService } from '../instance-ai.adapter.service';
@@ -1158,15 +1157,12 @@ function createNodeAdapterForTests(nodes: Array<Record<string, unknown>>) {
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[22],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[23],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[24],
-		{ isLicensed: jest.fn().mockReturnValue(false) } as unknown as ConstructorParameters<
-			typeof InstanceAiAdapterService
-		>[25],
+		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[25],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[26],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[27],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[28],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[29],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[30],
-		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[31],
 	);
 
 	(
@@ -1293,13 +1289,12 @@ function createDataTableAdapterForTests(overrides?: {
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[22],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[23],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[24],
-		{ isLicensed: jest.fn().mockReturnValue(false) } as unknown as License,
+		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[25],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[26],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[27],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[28],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[29],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[30],
-		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[31],
 	);
 
 	const adapter = service.createContext(mockUser, {
@@ -1489,10 +1484,7 @@ describe('createDataTableAdapter', () => {
 // ---------------------------------------------------------------------------
 
 function createWorkflowAdapterForTests(overrides?: {
-	namedVersionsLicensed?: boolean;
-	foldersLicensed?: boolean;
 	branchReadOnly?: boolean;
-	sharingEnabled?: boolean;
 	// Defaults to a bound project (every production run has one). Pass `null` to
 	// simulate a run with no bound project.
 	projectId?: string | null;
@@ -1606,20 +1598,12 @@ function createWorkflowAdapterForTests(overrides?: {
 		mockEnterpriseWorkflowService as unknown as ConstructorParameters<
 			typeof InstanceAiAdapterService
 		>[24],
-		{
-			isLicensed: jest.fn().mockImplementation((feat: string) => {
-				if (feat === 'feat:namedVersions') return overrides?.namedVersionsLicensed ?? false;
-				if (feat === 'feat:folders') return overrides?.foldersLicensed ?? false;
-				return false;
-			}),
-			isSharingEnabled: jest.fn().mockReturnValue(overrides?.sharingEnabled ?? false),
-		} as unknown as License,
+		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[25],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[26],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[27],
-		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[28],
-		mockTelemetry as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[29],
+		mockTelemetry as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[28],
 		mockAiBuilderTemporaryWorkflowRepository as unknown as AiBuilderTemporaryWorkflowRepository,
-		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[31],
+		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[30],
 	);
 
 	const boundProjectId =
@@ -1861,7 +1845,7 @@ describe('createWorkflowAdapter', () => {
 			mockEnterpriseWorkflowService,
 			mockWorkflowService,
 			mockUser,
-		} = createWorkflowAdapterForTests({ sharingEnabled: true });
+		} = createWorkflowAdapterForTests();
 		const saveError = new Error('credential access denied');
 		mockEnterpriseWorkflowService.preventTampering.mockRejectedValueOnce(saveError);
 
@@ -2089,85 +2073,35 @@ describe('createWorkflowAdapter', () => {
 });
 
 // ---------------------------------------------------------------------------
-// License-gated features
+// Always-available features (formerly license-gated)
 // ---------------------------------------------------------------------------
 
-describe('license-gated features', () => {
+describe('always-available features', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		mockedUserHasScopes.mockResolvedValue(true);
 	});
 
-	describe('updateVersion (feat:namedVersions)', () => {
-		it('is present on workflowService when licensed', () => {
-			const { adapter } = createWorkflowAdapterForTests({ namedVersionsLicensed: true });
+	it('exposes updateVersion on workflowService', () => {
+		const { adapter } = createWorkflowAdapterForTests();
 
-			expect(adapter.updateVersion).toBeDefined();
-			expect(typeof adapter.updateVersion).toBe('function');
-		});
-
-		it('is absent on workflowService when not licensed', () => {
-			const { adapter } = createWorkflowAdapterForTests({ namedVersionsLicensed: false });
-
-			expect(adapter.updateVersion).toBeUndefined();
-		});
+		expect(adapter.updateVersion).toBeDefined();
+		expect(typeof adapter.updateVersion).toBe('function');
 	});
 
-	describe('folders (feat:folders)', () => {
-		it('includes folder methods on workspaceService when licensed', () => {
-			const { context } = createWorkflowAdapterForTests({ foldersLicensed: true });
+	it('exposes folder methods on workspaceService', () => {
+		const { context } = createWorkflowAdapterForTests();
 
-			expect(context.workspaceService!.listFolders).toBeDefined();
-			expect(context.workspaceService!.createFolder).toBeDefined();
-			expect(context.workspaceService!.deleteFolder).toBeDefined();
-			expect(context.workspaceService!.moveWorkflowToFolder).toBeDefined();
-		});
-
-		it('omits folder methods on workspaceService when not licensed', () => {
-			const { context } = createWorkflowAdapterForTests({ foldersLicensed: false });
-
-			expect(context.workspaceService!.listFolders).toBeUndefined();
-			expect(context.workspaceService!.createFolder).toBeUndefined();
-			expect(context.workspaceService!.deleteFolder).toBeUndefined();
-			expect(context.workspaceService!.moveWorkflowToFolder).toBeUndefined();
-		});
+		expect(context.workspaceService!.listFolders).toBeDefined();
+		expect(context.workspaceService!.createFolder).toBeDefined();
+		expect(context.workspaceService!.deleteFolder).toBeDefined();
+		expect(context.workspaceService!.moveWorkflowToFolder).toBeDefined();
 	});
 
-	describe('licenseHints', () => {
-		it('includes hints for unlicensed features', () => {
-			const { context } = createWorkflowAdapterForTests({
-				namedVersionsLicensed: false,
-				foldersLicensed: false,
-			});
+	it('never returns licenseHints', () => {
+		const { context } = createWorkflowAdapterForTests();
 
-			expect(context.licenseHints).toEqual(
-				expect.arrayContaining([
-					expect.stringContaining('Named workflow versions'),
-					expect.stringContaining('Folders'),
-				]),
-			);
-		});
-
-		it('omits hints for licensed features', () => {
-			const { context } = createWorkflowAdapterForTests({
-				namedVersionsLicensed: true,
-				foldersLicensed: true,
-			});
-
-			expect(context.licenseHints).toEqual([]);
-		});
-
-		it('only includes hints for unlicensed features', () => {
-			const { context } = createWorkflowAdapterForTests({
-				namedVersionsLicensed: true,
-				foldersLicensed: false,
-			});
-
-			expect(context.licenseHints).toEqual([expect.stringContaining('Folders')]);
-			expect(context.licenseHints).not.toEqual(
-				expect.arrayContaining([expect.stringContaining('Named workflow versions')]),
-			);
-		});
+		expect(context.licenseHints).toEqual([]);
 	});
 });
 
@@ -2175,7 +2109,7 @@ describe('license-gated features', () => {
 // createExecutionAdapter – access control query
 // ---------------------------------------------------------------------------
 
-function createExecutionAdapterForTests(overrides?: { sharingEnabled?: boolean }) {
+function createExecutionAdapterForTests() {
 	const mockExecutionRepository = {
 		findManyByRangeQuery: jest.fn().mockResolvedValue([]),
 	};
@@ -2186,11 +2120,6 @@ function createExecutionAdapterForTests(overrides?: { sharingEnabled?: boolean }
 			if (namespace === 'workflow') return ['workflow:owner', 'workflow:editor'];
 			return [];
 		}),
-	};
-
-	const mockLicense = {
-		isLicensed: jest.fn().mockReturnValue(false),
-		isSharingEnabled: jest.fn().mockReturnValue(overrides?.sharingEnabled ?? false),
 	};
 
 	const mockUser = { id: 'user-1', role: { slug: 'global:member' } } as unknown as User;
@@ -2230,13 +2159,12 @@ function createExecutionAdapterForTests(overrides?: { sharingEnabled?: boolean }
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[22],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[23],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[24],
-		mockLicense as unknown as License,
+		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[25],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[26],
-		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[27],
 		mockRoleService as unknown as RoleService,
+		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[28],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[29],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[30],
-		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[31],
 	);
 
 	const adapter = service.createContext(mockUser).executionService;
@@ -2245,7 +2173,6 @@ function createExecutionAdapterForTests(overrides?: { sharingEnabled?: boolean }
 		adapter,
 		mockExecutionRepository,
 		mockRoleService,
-		mockLicense,
 		mockUser,
 	};
 }
@@ -2255,10 +2182,8 @@ describe('createExecutionAdapter', () => {
 		jest.clearAllMocks();
 	});
 
-	it('passes user and sharingOptions to execution query when sharing is enabled', async () => {
-		const { adapter, mockExecutionRepository, mockUser } = createExecutionAdapterForTests({
-			sharingEnabled: true,
-		});
+	it('passes user and sharingOptions to execution query', async () => {
+		const { adapter, mockExecutionRepository, mockUser } = createExecutionAdapterForTests();
 
 		await adapter.list();
 
@@ -2274,28 +2199,8 @@ describe('createExecutionAdapter', () => {
 		);
 	});
 
-	it('passes user and owner-only sharingOptions when sharing is disabled', async () => {
-		const { adapter, mockExecutionRepository, mockUser } = createExecutionAdapterForTests({
-			sharingEnabled: false,
-		});
-
-		await adapter.list();
-
-		expect(mockExecutionRepository.findManyByRangeQuery).toHaveBeenCalledWith(
-			expect.objectContaining({
-				user: mockUser,
-				sharingOptions: {
-					workflowRoles: ['workflow:owner'],
-					projectRoles: ['project:personalOwner'],
-				},
-			}),
-		);
-	});
-
 	it('does not pass accessibleWorkflowIds to execution query', async () => {
-		const { adapter, mockExecutionRepository } = createExecutionAdapterForTests({
-			sharingEnabled: true,
-		});
+		const { adapter, mockExecutionRepository } = createExecutionAdapterForTests();
 
 		await adapter.list();
 
@@ -2500,15 +2405,12 @@ function createRunAdapterForTests(
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[22],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[23],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[24],
-		{ isLicensed: jest.fn().mockReturnValue(false) } as unknown as ConstructorParameters<
-			typeof InstanceAiAdapterService
-		>[25],
+		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[25],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[26],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[27],
-		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[28],
-		mockTelemetry as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[29],
+		mockTelemetry as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[28],
+		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[29],
 		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[30],
-		{} as unknown as ConstructorParameters<typeof InstanceAiAdapterService>[31],
 	);
 
 	const adapter = service.createContext(mockUser, { threadId: options?.threadId }).executionService;

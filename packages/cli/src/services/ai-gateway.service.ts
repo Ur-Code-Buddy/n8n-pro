@@ -1,6 +1,4 @@
-import { LicenseState } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
-import { LICENSE_FEATURES } from '@n8n/constants';
 import { Service } from '@n8n/di';
 import { UserRepository } from '@n8n/db';
 import { InstanceSettings } from 'n8n-core';
@@ -9,8 +7,6 @@ import { UserError } from 'n8n-workflow';
 import type { AiGatewayConfigDto, AiGatewayUsageResponse } from '@n8n/api-types';
 
 import { N8N_VERSION, AI_ASSISTANT_SDK_VERSION } from '@/constants';
-import { FeatureNotLicensedError } from '@/errors/feature-not-licensed.error';
-import { License } from '@/license';
 import { OwnershipService } from '@/services/ownership.service';
 import { UrlService } from '@/services/url.service';
 
@@ -42,8 +38,6 @@ export class AiGatewayService {
 
 	constructor(
 		private readonly globalConfig: GlobalConfig,
-		private readonly license: License,
-		private readonly licenseState: LicenseState,
 		private readonly instanceSettings: InstanceSettings,
 		private readonly ownershipService: OwnershipService,
 		private readonly userRepository: UserRepository,
@@ -100,10 +94,6 @@ export class AiGatewayService {
 		projectId?: string;
 		executionId?: string;
 	}): Promise<ICredentialDataDecryptedObject> {
-		if (!this.licenseState.isAiGatewayLicensed()) {
-			throw new FeatureNotLicensedError(LICENSE_FEATURES.AI_GATEWAY);
-		}
-
 		const baseUrl = this.requireBaseUrl();
 
 		const config = await this.getGatewayConfig();
@@ -264,7 +254,7 @@ export class AiGatewayService {
 		const headers: Record<string, string> = {};
 		headers['Content-Type'] = 'application/json';
 		headers['x-user-id'] = userId;
-		headers['x-consumer-id'] = this.license.getConsumerId();
+		headers['x-consumer-id'] = 'unknown';
 		headers['x-sdk-version'] = AI_ASSISTANT_SDK_VERSION;
 		headers['x-n8n-version'] = N8N_VERSION;
 		headers['x-instance-id'] = this.instanceSettings.instanceId;
@@ -298,10 +288,8 @@ export class AiGatewayService {
 
 	private async fetchAndCacheToken(userId: string, key: string): Promise<string> {
 		const baseUrl = this.requireBaseUrl();
-		const [licenseCert, user] = await Promise.all([
-			this.license.loadCertStr(),
-			this.userRepository.findOneBy({ id: userId }),
-		]);
+		const licenseCert = '';
+		const user = await this.userRepository.findOneBy({ id: userId });
 
 		const response = await fetch(`${baseUrl}/v1/gateway/credentials`, {
 			method: 'POST',

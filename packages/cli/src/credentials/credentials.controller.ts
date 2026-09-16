@@ -4,7 +4,7 @@ import {
 	CredentialsGetOneRequestQuery,
 	GenerateCredentialNameRequestQuery,
 } from '@n8n/api-types';
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
 import {
 	SharedCredentials,
@@ -15,7 +15,6 @@ import {
 import {
 	Delete,
 	Get,
-	Licensed,
 	Patch,
 	Post,
 	Put,
@@ -56,7 +55,6 @@ export class CredentialsController {
 		private readonly credentialsService: CredentialsService,
 		private readonly enterpriseCredentialsService: EnterpriseCredentialsService,
 		private readonly namingService: NamingService,
-		private readonly licenseState: LicenseState,
 		private readonly logger: Logger,
 		private readonly userManagementMailer: UserManagementMailer,
 		private readonly sharedCredentialsRepository: SharedCredentialsRepository,
@@ -120,16 +118,14 @@ export class CredentialsController {
 		@Param('credentialId') credentialId: string,
 		@Query query: CredentialsGetOneRequestQuery,
 	) {
-		const { shared, ...credential } = this.licenseState.isSharingLicensed()
-			? await this.enterpriseCredentialsService.getOneForUser(
-					req.user,
-					credentialId,
-					// TODO: editor-ui is always sending this, maybe we can just rely on the
-					// the scopes and always decrypt the data if the user has the permissions
-					// to do so.
-					query.includeData,
-				)
-			: await this.credentialsService.getOne(req.user, credentialId, query.includeData);
+		const { shared, ...credential } = await this.enterpriseCredentialsService.getOneForUser(
+			req.user,
+			credentialId,
+			// TODO: editor-ui is always sending this, maybe we can just rely on the
+			// the scopes and always decrypt the data if the user has the permissions
+			// to do so.
+			query.includeData,
+		);
 
 		const scopes = await this.credentialsService.getCredentialScopes(
 			req.user,
@@ -264,10 +260,6 @@ export class CredentialsController {
 		// Update isGlobal if provided in the payload and user has permission
 		const isGlobal = body.isGlobal;
 		if (isGlobal !== undefined && isGlobal !== credential.isGlobal) {
-			if (!this.licenseState.isSharingLicensed()) {
-				throw new ForbiddenError('You are not licensed for sharing credentials');
-			}
-
 			const canShareGlobally = hasGlobalScope(req.user, 'credential:shareGlobally');
 			if (!canShareGlobally) {
 				throw new ForbiddenError(
@@ -373,7 +365,6 @@ export class CredentialsController {
 		return true;
 	}
 
-	@Licensed('feat:sharing')
 	@Put('/:credentialId/share')
 	async shareCredentials(req: CredentialRequest.Share) {
 		const { credentialId } = req.params;

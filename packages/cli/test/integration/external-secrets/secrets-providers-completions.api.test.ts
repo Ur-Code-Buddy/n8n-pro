@@ -1,4 +1,4 @@
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import {
 	createTeamProject,
 	linkUserToProject,
@@ -12,7 +12,6 @@ import {
 	SecretsProviderConnectionRepository,
 } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 
 import { ExternalSecretsManager } from '@/modules/external-secrets.ee/external-secrets-manager.ee';
 import { ExternalSecretsProviders } from '@/modules/external-secrets.ee/external-secrets-providers.ee';
@@ -34,10 +33,6 @@ const resetManager = async () => {
 
 const mockProvidersInstance = new MockProviders();
 mockInstance(ExternalSecretsProviders, mockProvidersInstance);
-
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(true);
-Container.set(LicenseState, licenseMock);
 
 mockInstance(ExternalSecretsConfig, {
 	externalSecretsForProjects: true,
@@ -64,11 +59,7 @@ describe('Secret Providers Completions API', () => {
 
 	const testServer = setupTestServer({
 		endpointGroups: ['externalSecrets'],
-		enabledFeatures: ['feat:externalSecrets', 'feat:customRoles'],
 		modules: ['external-secrets'],
-		quotas: {
-			'quota:maxTeamProjects': -1,
-		},
 	});
 
 	let connectionRepository: SecretsProviderConnectionRepository;

@@ -7,9 +7,8 @@ import {
 	mockInstance,
 } from '@n8n/backend-test-utils';
 import type { User } from '@n8n/db';
-import { GLOBAL_MEMBER_ROLE, GLOBAL_OWNER_ROLE, UserRepository } from '@n8n/db';
+import { GLOBAL_OWNER_ROLE, UserRepository } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { compare } from 'bcryptjs';
 import { mock } from 'jest-mock-extended';
 import { randomString } from 'n8n-workflow';
 import { v4 as uuid } from 'uuid';
@@ -17,7 +16,6 @@ import { v4 as uuid } from 'uuid';
 import { AuthService } from '@/auth/auth.service';
 import config from '@/config';
 import { ExternalHooks } from '@/external-hooks';
-import { License } from '@/license';
 import { JwtService } from '@/services/jwt.service';
 import { PasswordUtility } from '@/services/password.utility';
 import { setCurrentAuthenticationMethod } from '@/sso.ee/sso-helpers';
@@ -29,7 +27,6 @@ import { getAuthToken, setupTestServer } from './shared/utils';
 config.set('userManagement.jwtSecret', randomString(5, 10));
 
 let owner: User;
-let member: User;
 
 const externalHooks = mockInstance(ExternalHooks);
 const mailer = mockInstance(UserManagementMailer, { isEmailSetUp: true });
@@ -40,7 +37,6 @@ let authService: AuthService;
 beforeEach(async () => {
 	await testDb.truncate(['User']);
 	owner = await createUser({ role: GLOBAL_OWNER_ROLE });
-	member = await createUser({ role: GLOBAL_MEMBER_ROLE });
 	externalHooks.run.mockReset();
 	jest.replaceProperty(mailer, 'isEmailSetUp', true);
 	authService = Container.get(AuthService);
@@ -259,47 +255,5 @@ describe('POST /change-password', () => {
 		expect(response.statusCode).toBe(404);
 
 		expect(externalHooks.run).not.toHaveBeenCalled();
-	});
-
-	test('owner should be able to reset its password when quota:users = 1', async () => {
-		jest.spyOn(Container.get(License), 'getUsersLimit').mockReturnValueOnce(1);
-
-		const resetPasswordToken = authService.generatePasswordResetToken(owner);
-		const response = await testServer.authlessAgent.post('/change-password').send({
-			token: resetPasswordToken,
-			userId: owner.id,
-			password: passwordToStore,
-		});
-
-		expect(response.statusCode).toBe(200);
-
-		const authToken = getAuthToken(response);
-		expect(authToken).toBeDefined();
-
-		const { password: storedPassword } = await Container.get(UserRepository).findOneByOrFail({
-			id: owner.id,
-		});
-
-		const comparisonResult = await compare(passwordToStore, storedPassword!);
-		expect(comparisonResult).toBe(true);
-		expect(storedPassword).not.toBe(passwordToStore);
-
-		expect(externalHooks.run).toHaveBeenCalledWith('user.password.update', [
-			owner.email,
-			storedPassword,
-		]);
-	});
-
-	test('member should not be able to reset its password when quota:users = 1', async () => {
-		jest.spyOn(Container.get(License), 'getUsersLimit').mockReturnValueOnce(1);
-
-		const resetPasswordToken = authService.generatePasswordResetToken(member);
-		const response = await testServer.authlessAgent.post('/change-password').send({
-			token: resetPasswordToken,
-			userId: member.id,
-			password: passwordToStore,
-		});
-
-		expect(response.statusCode).toBe(403);
 	});
 });

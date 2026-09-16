@@ -5,9 +5,18 @@ import {
 	serializeInternalRestError,
 	serializePublicApiError,
 } from '@/errors/http-error-serializers';
-import { LicenseEulaRequiredError } from '@/errors/response-errors/license-eula-required.error';
+import { ResponseError } from '@/errors/response-errors/abstract/response.error';
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
 import { toImportBlockedError } from '@/modules/n8n-packages/engine/import-blocked.error';
+
+class TestErrorWithMeta extends ResponseError {
+	readonly meta: Record<string, unknown>;
+
+	constructor(message: string, meta: Record<string, unknown>) {
+		super(message, 400);
+		this.meta = meta;
+	}
+}
 
 describe('http-error-serializers', () => {
 	it('serializePublicApiError: minimal message for ResponseError', () => {
@@ -31,19 +40,19 @@ describe('http-error-serializers', () => {
 
 	it('serializePublicApiError: does not expose internal-only response error meta', () => {
 		const descriptor = classifyHttpError(
-			new LicenseEulaRequiredError('License activation requires EULA acceptance', {
+			new TestErrorWithMeta('Some error with meta', {
 				eulaUrl: 'https://n8n.io/legal/eula/',
 			}),
 		);
 		expect(serializePublicApiError(descriptor)).toEqual({
 			status: 400,
-			body: { message: 'License activation requires EULA acceptance' },
+			body: { message: 'Some error with meta' },
 		});
 		expect(serializeInternalRestError(descriptor)).toEqual({
 			status: 400,
 			body: {
 				code: 400,
-				message: 'License activation requires EULA acceptance',
+				message: 'Some error with meta',
 				meta: { eulaUrl: 'https://n8n.io/legal/eula/' },
 			},
 		});

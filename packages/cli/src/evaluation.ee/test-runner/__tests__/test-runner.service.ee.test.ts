@@ -27,26 +27,11 @@ import type { WorkflowCompilerService } from '../workflow-compiler.service';
 import type { ActiveExecutions } from '@/active-executions';
 import type { ConcurrencyControlService } from '@/concurrency/concurrency-control.service';
 import { TestRunError } from '@/evaluation.ee/test-runner/errors.ee';
-import type { License } from '@/license';
 import { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import type { Publisher } from '@/scaling/pubsub/publisher.service';
 import type { Telemetry } from '@/telemetry';
 import type { WorkflowRunner } from '@/workflow-runner';
 import type { WorkflowHistoryService } from '@/workflows/workflow-history/workflow-history.service';
-
-// Tier high enough that the resolver's tier-default branch lifts the cap to
-// 5, which is greater than every concurrency value used in these tests.
-// Tests that need a tighter cap mock the env var explicitly.
-// `getValue` is wired so callers asking for the eval-concurrency license
-// quota get `undefined` — the resolver then falls through to the tier
-// default, which is the path the surrounding tests assume.
-const buildLicenseMock = (planName = 'Enterprise', concurrencyQuota?: number) =>
-	mock<License>({
-		getPlanName: jest.fn().mockReturnValue(planName),
-		getValue: jest.fn((feature: string) =>
-			feature === 'quota:evaluations:concurrencyLimit' ? concurrencyQuota : undefined,
-		) as never,
-	});
 
 const wfUnderTestJson = JSON.parse(
 	readFileSync(path.join(__dirname, './mock-data/workflow.under-test.json'), { encoding: 'utf-8' }),
@@ -91,7 +76,6 @@ describe('TestRunnerService', () => {
 			publisher,
 			instanceSettings,
 			concurrencyControlService,
-			buildLicenseMock(),
 			workflowHistoryService,
 			evaluationCollectionRepository,
 			evaluationConfigRepository,
@@ -539,7 +523,6 @@ describe('TestRunnerService', () => {
 				publisher,
 				instanceSettings,
 				concurrencyControlService,
-				buildLicenseMock(),
 				workflowHistoryService,
 				evaluationCollectionRepository,
 				evaluationConfigRepository,
@@ -862,7 +845,6 @@ describe('TestRunnerService', () => {
 					publisher,
 					instanceSettings,
 					concurrencyControlService,
-					buildLicenseMock(),
 					workflowHistoryService,
 					evaluationCollectionRepository,
 					evaluationConfigRepository,
@@ -2284,8 +2266,8 @@ describe('TestRunnerService', () => {
 					concurrency: 4,
 					parallel_enabled: true,
 					concurrency_limited_by_config: false,
-					// Env var not set in this test, so the resolver falls through
-					// to the license-tier default — tagged as `tier`.
+					// Env var not set in this test, so the resolver returns
+					// unlimited — tagged as `tier`.
 					concurrency_limit_source: 'tier',
 				}),
 			);
@@ -2301,49 +2283,6 @@ describe('TestRunnerService', () => {
 					([eventName]) => eventName === 'Test run finished',
 				)?.[1] as Record<string, unknown>;
 				expect(payload.concurrency_limit_source).toBe('env');
-			} finally {
-				if (originalEnv === undefined) delete process.env.N8N_CONCURRENCY_EVALUATION_LIMIT;
-				else process.env.N8N_CONCURRENCY_EVALUATION_LIMIT = originalEnv;
-			}
-		});
-
-		test('concurrency_limit_source reports `license` when env is unset and the license issues a quota', async () => {
-			// Swap in a license that carries the per-customer quota
-			// `quota:evaluations:concurrencyLimit`. Env is unset, so the
-			// resolver's middle precedence branch fires.
-			const licensedRunner = new TestRunnerService(
-				logger,
-				telemetry,
-				workflowRepository,
-				workflowRunner,
-				activeExecutions,
-				testRunRepository,
-				testCaseExecutionRepository,
-				errorReporter,
-				executionsConfig,
-				mock(),
-				publisher,
-				instanceSettings,
-				concurrencyControlService,
-				buildLicenseMock('Community', 4),
-				workflowHistoryService,
-				evaluationCollectionRepository,
-				evaluationConfigRepository,
-				workflowCompiler,
-			);
-			setupHappyPathMocks(2);
-			const originalEnv = process.env.N8N_CONCURRENCY_EVALUATION_LIMIT;
-			delete process.env.N8N_CONCURRENCY_EVALUATION_LIMIT;
-			try {
-				await licensedRunner.runTest(USER as never, WORKFLOW_ID, 2);
-				const payload = telemetry.track.mock.calls.find(
-					([eventName]) => eventName === 'Test run finished',
-				)?.[1] as Record<string, unknown>;
-				expect(payload.concurrency_limit_source).toBe('license');
-				// Community tier would otherwise have clamped requested
-				// concurrency=2 to 1; the license-issued cap of 4 lets it
-				// flow through unchanged.
-				expect(payload.concurrency).toBe(2);
 			} finally {
 				if (originalEnv === undefined) delete process.env.N8N_CONCURRENCY_EVALUATION_LIMIT;
 				else process.env.N8N_CONCURRENCY_EVALUATION_LIMIT = originalEnv;
@@ -2404,7 +2343,6 @@ describe('TestRunnerService', () => {
 				publisher,
 				instanceSettings,
 				concurrencyControlService,
-				buildLicenseMock(),
 				workflowHistoryService,
 				evaluationCollectionRepository,
 				evaluationConfigRepository,
@@ -2503,7 +2441,6 @@ describe('TestRunnerService', () => {
 				publisher,
 				multiMainInstance,
 				concurrencyControlService,
-				buildLicenseMock(),
 				workflowHistoryService,
 				evaluationCollectionRepository,
 				evaluationConfigRepository,
@@ -2742,7 +2679,6 @@ describe('TestRunnerService', () => {
 				publisher,
 				multiMain,
 				concurrencyControlService,
-				buildLicenseMock(),
 				workflowHistoryService,
 				evaluationCollectionRepository,
 				evaluationConfigRepository,

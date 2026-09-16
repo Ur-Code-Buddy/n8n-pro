@@ -1,4 +1,4 @@
-import { Get, Post, Put, RestController, GlobalScope, Licensed } from '@n8n/decorators';
+import { Get, Post, Put, RestController, GlobalScope } from '@n8n/decorators';
 import pick from 'lodash/pick';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
@@ -17,14 +17,12 @@ export class LdapController {
 	) {}
 
 	@Get('/config')
-	@Licensed('feat:ldap')
 	@GlobalScope('ldap:manage')
 	async getConfig() {
 		return await this.ldapService.loadConfig();
 	}
 
 	@Post('/test-connection')
-	@Licensed('feat:ldap')
 	@GlobalScope('ldap:manage')
 	async testConnection() {
 		try {
@@ -35,7 +33,6 @@ export class LdapController {
 	}
 
 	@Put('/config')
-	@Licensed('feat:ldap')
 	@GlobalScope('ldap:manage')
 	async updateConfig(req: LdapConfiguration.Update) {
 		try {
@@ -55,7 +52,6 @@ export class LdapController {
 	}
 
 	@Get('/sync')
-	@Licensed('feat:ldap')
 	@GlobalScope('ldap:sync')
 	async getLdapSync(req: LdapConfiguration.GetSync) {
 		const { page = '0', perPage = '20' } = req.query;
@@ -63,7 +59,6 @@ export class LdapController {
 	}
 
 	@Post('/sync')
-	@Licensed('feat:ldap')
 	@GlobalScope('ldap:sync')
 	async syncLdap(req: LdapConfiguration.Sync) {
 		try {

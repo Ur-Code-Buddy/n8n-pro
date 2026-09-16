@@ -106,7 +106,6 @@ describe('Webhook', () => {
 			webhook.globalConfig = { executions: { mode: 'queue' } };
 			// @ts-expect-error - Accessing protected method for testing
 			webhook.initCrashJournal = jest.fn().mockResolvedValue(undefined);
-			webhook.initLicense = jest.fn().mockResolvedValue(undefined);
 			// @ts-expect-error - Accessing protected method for testing
 			webhook.initCommunityPackages = jest.fn().mockResolvedValue(undefined);
 			webhook.initOrchestration = jest.fn().mockResolvedValue(undefined);

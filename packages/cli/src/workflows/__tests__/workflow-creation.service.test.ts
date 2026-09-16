@@ -1,4 +1,3 @@
-import type { LicenseState } from '@n8n/backend-common';
 import type { ProjectRepository, User } from '@n8n/db';
 import { WorkflowEntity } from '@n8n/db';
 import type { MockProxy } from 'jest-mock-extended';
@@ -27,7 +26,6 @@ describe('WorkflowCreationService', () => {
 	let workflowCreationService: WorkflowCreationService;
 	let credentialsServiceMock: MockProxy<CredentialsService>;
 	let enterpriseWorkflowServiceMock: MockProxy<EnterpriseWorkflowService>;
-	let licenseStateMock: MockProxy<LicenseState>;
 	let projectServiceMock: MockProxy<ProjectService>;
 	let projectRepositoryMock: MockProxy<ProjectRepository>;
 	let workflowValidationServiceMock: MockProxy<WorkflowValidationService>;
@@ -38,7 +36,6 @@ describe('WorkflowCreationService', () => {
 
 		credentialsServiceMock = mock<CredentialsService>();
 		enterpriseWorkflowServiceMock = mock<EnterpriseWorkflowService>();
-		licenseStateMock = mock<LicenseState>();
 		projectServiceMock = mock<ProjectService>();
 		projectRepositoryMock = mock<ProjectRepository>();
 		workflowValidationServiceMock = mock<WorkflowValidationService>();
@@ -60,7 +57,6 @@ describe('WorkflowCreationService', () => {
 			mock(), // eventService
 			mock(), // globalConfig
 			mock(), // workflowFinderService
-			licenseStateMock,
 			projectRepositoryMock,
 			mock(), // tagRepository
 			credentialsServiceMock,
@@ -102,7 +98,6 @@ describe('WorkflowCreationService', () => {
 	describe('createWorkflow()', () => {
 		it('should throw BadRequestError for invalid workflow structure', async () => {
 			projectServiceMock.getProjectWithScope.mockResolvedValue({ id: 'project-1' } as never);
-			licenseStateMock.isSharingLicensed.mockReturnValue(false);
 			jest.mocked(WorkflowHelpers.validateWorkflowStructure).mockImplementationOnce(() => {
 				throw new BadRequestError('Workflow structure is invalid. nodes[0].type: Required');
 			});
@@ -124,7 +119,6 @@ describe('WorkflowCreationService', () => {
 				 * Arrange
 				 */
 				credentialsServiceMock.getMany.mockResolvedValue([]);
-				licenseStateMock.isSharingLicensed.mockReturnValue(true);
 				enterpriseWorkflowServiceMock.validateCredentialPermissionsToUser.mockImplementation(() => {
 					throw new Error('Stopping for test');
 				});
@@ -154,7 +148,6 @@ describe('WorkflowCreationService', () => {
 			 * Arrange
 			 */
 			credentialsServiceMock.getMany.mockResolvedValue([]);
-			licenseStateMock.isSharingLicensed.mockReturnValue(true);
 			enterpriseWorkflowServiceMock.validateCredentialPermissionsToUser.mockImplementation(() => {
 				throw new Error('User does not have access');
 			});
@@ -183,8 +176,6 @@ describe('WorkflowCreationService', () => {
 			 * Arrange
 			 */
 			projectServiceMock.getProjectWithScope.mockResolvedValue({ id: 'project-1' } as never);
-			licenseStateMock.isSharingLicensed.mockReturnValue(false);
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(true);
 			userHasScopesMock.mockResolvedValue(false);
 			const { transactionManager } = setupTransactionMocks();
 
@@ -219,8 +210,6 @@ describe('WorkflowCreationService', () => {
 			 * Arrange
 			 */
 			projectServiceMock.getProjectWithScope.mockResolvedValue({ id: 'project-1' } as never);
-			licenseStateMock.isSharingLicensed.mockReturnValue(false);
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(true);
 			userHasScopesMock.mockResolvedValue(true);
 			const { transactionManager } = setupTransactionMocks();
 
@@ -255,8 +244,6 @@ describe('WorkflowCreationService', () => {
 			 * Arrange
 			 */
 			projectServiceMock.getProjectWithScope.mockResolvedValue({ id: 'project-1' } as never);
-			licenseStateMock.isSharingLicensed.mockReturnValue(false);
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(true);
 			const { transactionManager } = setupTransactionMocks();
 
 			const user = mock<User>();
@@ -286,8 +273,6 @@ describe('WorkflowCreationService', () => {
 			projectServiceMock.getProjectWithScope.mockResolvedValue({
 				id: 'personal-project-789',
 			} as never);
-			licenseStateMock.isSharingLicensed.mockReturnValue(false);
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(true);
 			userHasScopesMock.mockResolvedValue(false);
 			const { transactionManager } = setupTransactionMocks({
 				personalProjectId: 'personal-project-789',
@@ -324,7 +309,6 @@ describe('WorkflowCreationService', () => {
 			 * Arrange
 			 */
 			projectServiceMock.getProjectWithScope.mockResolvedValue({ id: 'project-1' } as never);
-			licenseStateMock.isSharingLicensed.mockReturnValue(false);
 			setupTransactionMocks();
 
 			const user = mock<User>();
@@ -348,8 +332,6 @@ describe('WorkflowCreationService', () => {
 	describe('redaction policy floor enforcement on create', () => {
 		beforeEach(() => {
 			projectServiceMock.getProjectWithScope.mockResolvedValue({ id: 'project-1' } as never);
-			licenseStateMock.isSharingLicensed.mockReturnValue(false);
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(true);
 		});
 
 		it('seeds non-manual when floor is production-only and no policy is provided', async () => {
@@ -499,24 +481,6 @@ describe('WorkflowCreationService', () => {
 
 			const savedEntity = transactionManager.save.mock.calls[0][0] as WorkflowEntity;
 			expect(savedEntity.settings?.redactionPolicy).toBe('all');
-		});
-
-		it('drops redactionPolicy when the instance lacks the data-redaction license', async () => {
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(false);
-			const { transactionManager } = setupTransactionMocks();
-
-			const newWorkflow = new WorkflowEntity();
-			newWorkflow.settings = { redactionPolicy: 'all' };
-
-			await expect(
-				workflowCreationService.createWorkflow(mock<User>(), newWorkflow, {
-					projectId: 'project-1',
-				}),
-			).rejects.toThrow('Stopping for test');
-
-			expect(instanceRedactionEnforcementServiceMock.get).not.toHaveBeenCalled();
-			const savedEntity = transactionManager.save.mock.calls[0][0] as WorkflowEntity;
-			expect(savedEntity.settings?.redactionPolicy).toBeUndefined();
 		});
 	});
 

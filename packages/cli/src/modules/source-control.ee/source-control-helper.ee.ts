@@ -17,7 +17,6 @@ import { ok } from 'node:assert/strict';
 import { readFile as fsReadFile } from 'node:fs/promises';
 import path from 'path';
 
-import { License } from '@/license';
 import { containsExpression } from '@/utils';
 
 import {
@@ -260,8 +259,7 @@ export function sourceControlFoldersExistCheck(
 }
 
 export function isSourceControlLicensed() {
-	const license = Container.get(License);
-	return license.isSourceControlLicensed();
+	return true;
 }
 
 export async function generateSshKeyPair(keyType: KeyPairType) {

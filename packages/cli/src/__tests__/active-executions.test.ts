@@ -25,7 +25,6 @@ import { ActiveExecutions } from '@/active-executions';
 import { ConcurrencyControlService } from '@/concurrency/concurrency-control.service';
 import type { EventService } from '@/events/event.service';
 import type { ExecutionPersistence } from '@/executions/execution-persistence';
-import type { License } from '@/license';
 import type { Telemetry } from '@/telemetry';
 
 jest.mock('n8n-workflow', () => ({
@@ -210,7 +209,6 @@ describe('ActiveExecutions', () => {
 					},
 					deployment: { type: 'default' },
 				}),
-				mock<License>(),
 			);
 			return service;
 		};

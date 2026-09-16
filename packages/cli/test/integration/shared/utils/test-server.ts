@@ -1,4 +1,4 @@
-import { LicenseState, Logger, ModuleRegistry } from '@n8n/backend-common';
+import { Logger, ModuleRegistry } from '@n8n/backend-common';
 import { mockInstance, mockLogger, testModules, testDb } from '@n8n/backend-test-utils';
 import { GlobalConfig } from '@n8n/config';
 import type { APIRequest, User } from '@n8n/db';
@@ -13,7 +13,6 @@ import { AuthHandlerRegistry } from '@/auth/auth-handler.registry';
 import { AuthService } from '@/auth/auth.service';
 import { AUTH_COOKIE_NAME } from '@/constants';
 import { ControllerRegistry } from '@/controller.registry';
-import { License } from '@/license';
 import { rawBodyReader, bodyParser } from '@/middlewares';
 import { PostHogClient } from '@/posthog';
 import { Push } from '@/push';
@@ -21,8 +20,6 @@ import { ApiKeyAuthStrategy } from '@/services/api-key-auth.strategy';
 import { AuthStrategyRegistry } from '@/services/auth-strategy.registry';
 import { Telemetry } from '@/telemetry';
 import { resolveBackendHealthEndpointPath } from '@/utils/health-endpoint.util';
-
-import { LicenseMocker } from '@test-integration/license';
 
 import { PUBLIC_API_REST_PATH_SEGMENT, REST_PATH_SEGMENT } from '../constants';
 import type { SetupProps, TestServer } from '../types';
@@ -94,12 +91,7 @@ const publicApiAgent = (
 	return agent;
 };
 
-export const setupTestServer = ({
-	endpointGroups,
-	enabledFeatures,
-	quotas,
-	modules,
-}: SetupProps): TestServer => {
+export const setupTestServer = ({ endpointGroups, modules }: SetupProps): TestServer => {
 	const app = express();
 	app.use(rawBodyReader);
 	app.use(cookieParser());
@@ -124,7 +116,15 @@ export const setupTestServer = ({
 		publicApiAgentFor: (user) => publicApiAgent(app, { user }),
 		publicApiAgentWithApiKey: (apiKey) => publicApiAgent(app, { apiKey }),
 		publicApiAgentWithoutApiKey: () => publicApiAgent(app, {}),
-		license: new LicenseMocker(),
+		// No-op: every feature is unconditionally enabled now that license
+		// gating is removed. Kept so pre-existing call sites keep compiling.
+		license: {
+			enable: () => {},
+			disable: () => {},
+			setQuota: () => {},
+			setDefaults: () => {},
+			reset: () => {},
+		},
 	};
 
 	// eslint-disable-next-line complexity
@@ -133,18 +133,6 @@ export const setupTestServer = ({
 		await testDb.init();
 
 		Container.get(GlobalConfig).userManagement.jwtSecret = 'My JWT secret';
-
-		testServer.license.mock(Container.get(License));
-		testServer.license.mockLicenseState(Container.get(LicenseState));
-
-		if (enabledFeatures) {
-			testServer.license.setDefaults({
-				features: enabledFeatures,
-				quotas,
-			});
-			// Apply defaults before ModuleRegistry.initModules so licensed modules register routes.
-			testServer.license.reset();
-		}
 
 		if (!endpointGroups) return;
 
@@ -203,10 +191,6 @@ export const setupTestServer = ({
 						await import('@/environments.ee/variables/variables.controller.ee');
 						break;
 
-					case 'license':
-						await import('@/license/license.controller');
-						break;
-
 					case 'metrics': {
 						// CacheService must be initialized before PrometheusMetricsService
 						// because cache-metrics.service calls isRedis() during init, which
@@ -241,7 +225,6 @@ export const setupTestServer = ({
 					case 'ldap': {
 						const { LdapService } = await import('@/modules/ldap.ee/ldap.service.ee');
 						await import('@/modules/ldap.ee/ldap.controller.ee');
-						testServer.license.enable('feat:ldap');
 						await Container.get(LdapService).init();
 						break;
 					}
@@ -387,10 +370,6 @@ export const setupTestServer = ({
 			});
 		}
 		await testDb.terminate();
-	});
-
-	beforeEach(() => {
-		testServer.license.reset();
 	});
 
 	return testServer;

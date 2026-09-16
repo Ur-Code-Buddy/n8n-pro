@@ -15,7 +15,6 @@ import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { InvalidMfaCodeError } from '@/errors/response-errors/invalid-mfa-code.error';
 import { EventService } from '@/events/event.service';
 import { ExternalHooks } from '@/external-hooks';
-import { License } from '@/license';
 import { MfaService } from '@/mfa/mfa.service';
 import type { MeRequest } from '@/requests';
 import { UserService } from '@/services/user.service';
@@ -38,7 +37,6 @@ describe('MeController', () => {
 	const userRepository = mockInstance(UserRepository);
 	const mockMfaService = mockInstance(MfaService);
 	mockInstance(InvalidAuthTokenRepository);
-	mockInstance(License).isWithinUsersLimit.mockReturnValue(true);
 	const controller = Container.get(MeController);
 
 	beforeEach(() => {

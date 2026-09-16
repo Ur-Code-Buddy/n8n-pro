@@ -1,5 +1,4 @@
 import { Logger } from '@n8n/backend-common';
-import { LICENSE_FEATURES } from '@n8n/constants';
 import { OnPubSubEvent } from '@n8n/decorators';
 import { Service } from '@n8n/di';
 import axios from 'axios';
@@ -19,8 +18,6 @@ import { promisify } from 'node:util';
 import { valid } from 'semver';
 
 import { NODE_PACKAGE_PREFIX, NPM_PACKAGE_STATUS_GOOD, RESPONSE_ERROR_MESSAGES } from '@/constants';
-import { FeatureNotLicensedError } from '@/errors/feature-not-licensed.error';
-import { License } from '@/license';
 import { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import { Publisher } from '@/scaling/pubsub/publisher.service';
 import { toError } from '@/utils';
@@ -40,8 +37,6 @@ const NPM_DIST_TAG_PATTERN = /^[a-z][a-z0-9-._]*$/;
 export function isValidVersionSpecifier(version: string): boolean {
 	return valid(version) !== null || NPM_DIST_TAG_PATTERN.test(version);
 }
-
-const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 
 const { PACKAGE_NAME_NOT_PROVIDED } = RESPONSE_ERROR_MESSAGES;
 
@@ -67,7 +62,6 @@ export class CommunityPackagesService {
 		private readonly installedPackageRepository: InstalledPackagesRepository,
 		private readonly loadNodesAndCredentials: LoadNodesAndCredentials,
 		private readonly publisher: Publisher,
-		private readonly license: License,
 		private readonly config: CommunityPackagesConfig,
 	) {}
 
@@ -364,11 +358,7 @@ export class CommunityPackagesService {
 	}
 
 	private getNpmRegistry() {
-		const { registry } = this.config;
-		if (registry !== DEFAULT_REGISTRY && !this.license.isCustomNpmRegistryEnabled()) {
-			throw new FeatureNotLicensedError(LICENSE_FEATURES.COMMUNITY_NODES_CUSTOM_REGISTRY);
-		}
-		return registry;
+		return this.config.registry;
 	}
 
 	private getNpmAuthToken(): string | undefined {

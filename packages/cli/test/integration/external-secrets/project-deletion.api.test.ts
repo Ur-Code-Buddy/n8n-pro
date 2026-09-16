@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import {
 	createTeamProject,
 	linkUserToProject,
@@ -11,7 +10,6 @@ import {
 	SecretsProviderConnectionRepository,
 } from '@n8n/db';
 import { Container } from '@n8n/di';
-import { mock } from 'jest-mock-extended';
 
 import { ExternalSecretsConfig } from '@/modules/external-secrets.ee/external-secrets.config';
 import { ExternalSecretsProviders } from '@/modules/external-secrets.ee/external-secrets-providers.ee';
@@ -26,10 +24,6 @@ mockProvidersInstance.setProviders({
 });
 mockInstance(ExternalSecretsProviders, mockProvidersInstance);
 
-const licenseMock = mock<LicenseState>();
-licenseMock.isLicensed.mockReturnValue(true);
-Container.set(LicenseState, licenseMock);
-
 mockInstance(ExternalSecretsConfig, {
 	externalSecretsForProjects: true,
 });
@@ -37,13 +31,6 @@ mockInstance(ExternalSecretsConfig, {
 describe('Project deletion with external secrets', () => {
 	const testServer = setupTestServer({
 		endpointGroups: ['project', 'externalSecrets'],
-		enabledFeatures: [
-			'feat:externalSecrets',
-			'feat:advancedPermissions',
-			'feat:projectRole:admin',
-			'feat:projectRole:editor',
-			'feat:projectRole:viewer',
-		],
 		modules: ['external-secrets'],
 	});
 

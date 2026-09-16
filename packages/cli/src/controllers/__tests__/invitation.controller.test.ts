@@ -4,7 +4,6 @@ import { PostHogClient } from '@/posthog';
 import { ExternalHooks } from '@/external-hooks';
 import { AuthService } from '@/auth/auth.service';
 import { UserService } from '@/services/user.service';
-import { License } from '@/license';
 import { PasswordUtility } from '@/services/password.utility';
 import type { User, PublicUser } from '@n8n/db';
 import { UserRepository } from '@n8n/db';
@@ -14,12 +13,10 @@ import { InvitationController } from '../invitation.controller';
 import type { AcceptInvitationRequestDto } from '@n8n/api-types';
 import { InviteUsersRequestDto } from '@n8n/api-types';
 import { mock } from 'jest-mock-extended';
-import { GLOBAL_OWNER_ROLE, GLOBAL_MEMBER_ROLE, GLOBAL_ADMIN_ROLE } from '@n8n/db';
+import { GLOBAL_OWNER_ROLE, GLOBAL_MEMBER_ROLE } from '@n8n/db';
 import type { AuthenticatedRequest } from '@n8n/db';
 import type { Response } from 'express';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { RESPONSE_ERROR_MESSAGES } from '@/constants';
-import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import config from '@/config';
 import type { AuthlessRequest } from '@/requests';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,7 +27,6 @@ describe('InvitationController', () => {
 	const externalHooks: ExternalHooks = mockInstance(ExternalHooks);
 	const authService: AuthService = mockInstance(AuthService);
 	const userService: UserService = mockInstance(UserService);
-	const license: License = mockInstance(License);
 	const passwordUtility: PasswordUtility = mockInstance(PasswordUtility);
 	const userRepository: UserRepository = mockInstance(UserRepository);
 	const postHog: PostHogClient = mockInstance(PostHogClient);
@@ -43,7 +39,6 @@ describe('InvitationController', () => {
 			externalHooks,
 			authService,
 			userService,
-			license,
 			passwordUtility,
 			userRepository,
 			postHog,
@@ -83,34 +78,8 @@ describe('InvitationController', () => {
 			);
 		});
 
-		it('throws a ForbiddenError if the user limit quota has been reached', async () => {
-			jest.spyOn(ssoHelpers, 'isSsoCurrentAuthenticationMethod').mockReturnValue(false);
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(false);
-			jest.spyOn(ownershipService, 'hasInstanceOwner').mockReturnValue(Promise.resolve(true));
-
-			const invitationController = defaultInvitationController();
-
-			const user = mock<User>({
-				id: '123',
-				email: 'valid@email.com',
-			});
-
-			const payload = new InviteUsersRequestDto({
-				email: 'valid@email.com',
-				role: 'global:member',
-			});
-
-			const req = mock<AuthenticatedRequest>({ user });
-			const res = mock<Response>();
-
-			const promise = invitationController.inviteUser(req, res, payload);
-			await expect(promise).rejects.toThrow(ForbiddenError);
-			await expect(promise).rejects.toThrow(RESPONSE_ERROR_MESSAGES.USERS_QUOTA_REACHED);
-		});
-
 		it('throws a BadRequestError if the owner account is not set up', async () => {
 			jest.spyOn(ssoHelpers, 'isSsoCurrentAuthenticationMethod').mockReturnValue(false);
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(true);
 			jest.spyOn(config, 'getEnv').mockReturnValue(false);
 			jest.spyOn(ownershipService, 'hasInstanceOwner').mockReturnValue(Promise.resolve(false));
 
@@ -136,42 +105,6 @@ describe('InvitationController', () => {
 			);
 		});
 
-		it('throws a ForbiddenError if the user is an admin but advanced permissions is not licensed', async () => {
-			jest.spyOn(ssoHelpers, 'isSsoCurrentAuthenticationMethod').mockReturnValue(false);
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(true);
-			jest.spyOn(config, 'getEnv').mockReturnValue(true);
-			jest.spyOn(license, 'isAdvancedPermissionsLicensed').mockReturnValue(false);
-			jest.spyOn(ownershipService, 'hasInstanceOwner').mockReturnValue(Promise.resolve(true));
-
-			const invitationController = defaultInvitationController();
-
-			const user = mock<User>({
-				id: '123',
-				email: 'valid@email.com',
-				role: GLOBAL_ADMIN_ROLE,
-			});
-
-			const payload = new InviteUsersRequestDto(
-				{
-					email: 'valid@email.com',
-					role: 'global:admin',
-				},
-				{
-					email: 'valid@email.com',
-					role: 'global:admin',
-				},
-			);
-
-			const req = mock<AuthenticatedRequest>({ user });
-			const res = mock<Response>();
-
-			const promise = invitationController.inviteUser(req, res, payload);
-			await expect(promise).rejects.toThrow(ForbiddenError);
-			await expect(promise).rejects.toThrow(
-				'Cannot invite admin user without advanced permissions. Please upgrade to a license that includes this feature.',
-			);
-		});
-
 		it('invites users successfully', async () => {
 			const inviteUsersResult = {
 				usersInvited: [
@@ -189,9 +122,7 @@ describe('InvitationController', () => {
 				usersCreated: ['123'],
 			};
 			jest.spyOn(ssoHelpers, 'isSsoCurrentAuthenticationMethod').mockReturnValue(false);
-			jest.spyOn(license, 'isWithinUsersLimit').mockReturnValue(true);
 			jest.spyOn(config, 'getEnv').mockReturnValue(true);
-			jest.spyOn(license, 'isAdvancedPermissionsLicensed').mockReturnValue(true);
 			jest.spyOn(userService, 'inviteUsers').mockResolvedValue(inviteUsersResult);
 			jest.spyOn(ownershipService, 'hasInstanceOwner').mockReturnValue(Promise.resolve(true));
 

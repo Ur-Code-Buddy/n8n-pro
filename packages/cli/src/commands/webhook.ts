@@ -74,8 +74,6 @@ export class Webhook extends BaseCommand {
 		await Container.get(JwtService).initialize(Container.get(DeploymentKeyRepository));
 		await Container.get(BinaryDataConfig).initialize(Container.get(DeploymentKeyRepository));
 
-		await this.initLicense();
-		this.logger.debug('License init complete');
 		await this.initCommunityPackages();
 		await this.initOrchestration();
 		this.logger.debug('Orchestration init complete');

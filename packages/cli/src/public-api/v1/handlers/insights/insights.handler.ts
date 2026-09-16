@@ -1,24 +1,14 @@
 import { InsightsDateFilterDto } from '@n8n/api-types';
 import { Container } from '@n8n/di';
 import { DateTime } from 'luxon';
-import { UserError } from 'n8n-workflow';
 import { z } from 'zod';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { InsightsService } from '@/modules/insights/insights.service';
 import type { InsightsRequest } from '@/public-api/types';
 
 import type { PublicAPIEndpoint } from '../../shared/handler.types';
 import { publicApiScope } from '../../shared/middlewares/global.middleware';
-
-const handleError = (error: unknown) => {
-	if (error instanceof UserError) {
-		throw new ForbiddenError(error.message);
-	}
-
-	throw error;
-};
 
 const dateFilterValidationSchema = z
 	.object({
@@ -59,12 +49,6 @@ const insightsHandlers: InsightsHandlers = {
 
 			const endDate = query.data.endDate ?? new Date();
 			const startDate = query.data.startDate ?? DateTime.now().minus({ days: 7 }).toJSDate();
-
-			try {
-				Container.get(InsightsService).validateDateFiltersLicense({ startDate, endDate });
-			} catch (error) {
-				return handleError(error);
-			}
 
 			const summary = await Container.get(InsightsService).getInsightsSummary({
 				startDate,

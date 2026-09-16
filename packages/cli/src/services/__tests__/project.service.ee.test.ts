@@ -41,7 +41,6 @@ describe('ProjectService', () => {
 		projectRelationRepository,
 		roleService,
 		sharedCredentialsRepository,
-		mock(),
 		moduleRegistry,
 		ownershipService,
 	);
@@ -166,21 +165,6 @@ describe('ProjectService', () => {
 
 			await expect(projectService.syncProjectRelations(projectId, mockRelations)).rejects.toThrow(
 				`Could not find project with ID: ${projectId}`,
-			);
-		});
-
-		it('should throw error if unlicensed role is used', async () => {
-			projectRepository.findOne.mockResolvedValueOnce(
-				mock<Project>({
-					id: projectId,
-					type: 'team',
-					projectRelations: [],
-				}),
-			);
-			roleService.isRoleLicensed.mockReturnValue(false);
-
-			await expect(projectService.syncProjectRelations(projectId, mockRelations)).rejects.toThrow(
-				'Your instance is not licensed to use role "project:admin"',
 			);
 		});
 

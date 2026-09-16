@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
 import {
 	CredentialsRepository,
@@ -35,7 +34,6 @@ import { EventService } from '@/events/event.service';
 import type { RelayEventMap } from '@/events/maps/relay.event-map';
 import { determineFinalExecutionStatus } from '@/execution-lifecycle/shared/shared-hook-functions';
 import type { IExecutionTrackProperties } from '@/interfaces';
-import { License } from '@/license';
 import { NodeTypes } from '@/node-types';
 
 import { EventRelay } from './event-relay';
@@ -83,8 +81,6 @@ export class TelemetryEventRelay extends EventRelay {
 	constructor(
 		readonly eventService: EventService,
 		private readonly telemetry: Telemetry,
-		private readonly license: License,
-		private readonly licenseState: LicenseState,
 		private readonly globalConfig: GlobalConfig,
 		private readonly instanceSettings: InstanceSettings,
 		private readonly binaryDataConfig: BinaryDataConfig,
@@ -1246,7 +1242,7 @@ export class TelemetryEventRelay extends EventRelay {
 
 		const isS3Selected = this.binaryDataConfig.mode === 's3';
 		const isS3Available = this.binaryDataConfig.availableModes.includes('s3');
-		const isS3Licensed = this.license.isBinaryDataS3Licensed();
+		const isS3Licensed = true;
 		const authenticationMethod = config.getEnv('userManagement.authenticationMethod');
 
 		const info = {
@@ -1292,8 +1288,8 @@ export class TelemetryEventRelay extends EventRelay {
 			smtp_set_up: this.globalConfig.userManagement.emails.mode === 'smtp',
 			ldap_allowed: authenticationMethod === 'ldap',
 			saml_enabled: authenticationMethod === 'saml',
-			license_plan_name: this.license.getPlanName(),
-			license_tenant_id: this.globalConfig.license.tenantId,
+			license_plan_name: 'Enterprise',
+			license_tenant_id: 1,
 			binary_data_s3: isS3Available && isS3Selected && isS3Licensed,
 			multi_main_setup_enabled: this.globalConfig.multiMainSetup.enabled,
 			metrics: {
@@ -1336,14 +1332,8 @@ export class TelemetryEventRelay extends EventRelay {
 
 			// Licensing
 			license: {
-				plan_name: this.license.getPlanName(),
-				tenant_id: this.globalConfig.license.tenantId,
-				auto_renewal_enabled: this.globalConfig.license.autoRenewalEnabled,
-				has_activation_key: !!this.globalConfig.license.activationKey,
-				expiry_date: this.license.getExpiryDate()?.toISOString(),
-				termination_date: this.license.getTerminationDate()?.toISOString(),
-				expiring_in_days: this.license.getExpiringInDays(),
-				terminating_in_days: this.license.getTerminatingInDays(),
+				plan_name: 'Enterprise',
+				tenant_id: 1,
 				features: this.getLicenseFeatures(),
 			},
 
@@ -1398,52 +1388,53 @@ export class TelemetryEventRelay extends EventRelay {
 
 	private getLicenseFeatures() {
 		return {
-			// Features
-			customRoles: this.licenseState.isCustomRolesLicensed(),
-			dynamicCredentials: this.licenseState.isDynamicCredentialsLicensed(),
-			personalSpacePolicy: this.licenseState.isPersonalSpacePolicyLicensed(),
-			sharing: this.licenseState.isSharingLicensed(),
-			logStreaming: this.licenseState.isLogStreamingLicensed(),
-			ldap: this.licenseState.isLdapLicensed(),
-			saml: this.licenseState.isSamlLicensed(),
-			oidc: this.licenseState.isOidcLicensed(),
-			mfaEnforcement: this.licenseState.isMFAEnforcementLicensed(),
-			apiKeyScopes: this.licenseState.isApiKeyScopesLicensed(),
-			aiAssistant: this.licenseState.isAiAssistantLicensed(),
-			askAi: this.licenseState.isAskAiLicensed(),
-			aiCredits: this.licenseState.isAiCreditsLicensed(),
-			advancedExecutionFilters: this.licenseState.isAdvancedExecutionFiltersLicensed(),
-			advancedPermissions: this.licenseState.isAdvancedPermissionsLicensed(),
-			debugInEditor: this.licenseState.isDebugInEditorLicensed(),
-			binaryDataS3: this.licenseState.isBinaryDataS3Licensed(),
-			multiMain: this.licenseState.isMultiMainLicensed(),
-			variables: this.licenseState.isVariablesLicensed(),
-			sourceControl: this.licenseState.isSourceControlLicensed(),
-			externalSecrets: this.licenseState.isExternalSecretsLicensed(),
-			apiDisabled: this.licenseState.isAPIDisabled(),
-			workerView: this.licenseState.isWorkerViewLicensed(),
-			projectRoleAdmin: this.licenseState.isProjectRoleAdminLicensed(),
-			projectRoleEditor: this.licenseState.isProjectRoleEditorLicensed(),
-			projectRoleViewer: this.licenseState.isProjectRoleViewerLicensed(),
-			customNpmRegistry: this.licenseState.isCustomNpmRegistryLicensed(),
-			folders: this.licenseState.isFoldersLicensed(),
-			insightsSummary: this.licenseState.isInsightsSummaryLicensed(),
-			insightsDashboard: this.licenseState.isInsightsDashboardLicensed(),
-			insightsHourlyData: this.licenseState.isInsightsHourlyDataLicensed(),
-			workflowDiffs: this.licenseState.isWorkflowDiffsLicensed(),
-			provisioning: this.licenseState.isProvisioningLicensed(),
+			// Features — every feature is unconditionally available now that
+			// license gating is removed.
+			customRoles: true,
+			dynamicCredentials: true,
+			personalSpacePolicy: true,
+			sharing: true,
+			logStreaming: true,
+			ldap: true,
+			saml: true,
+			oidc: true,
+			mfaEnforcement: true,
+			apiKeyScopes: true,
+			aiAssistant: true,
+			askAi: true,
+			aiCredits: true,
+			advancedExecutionFilters: true,
+			advancedPermissions: true,
+			debugInEditor: true,
+			binaryDataS3: true,
+			multiMain: true,
+			variables: true,
+			sourceControl: true,
+			externalSecrets: true,
+			apiDisabled: false,
+			workerView: true,
+			projectRoleAdmin: true,
+			projectRoleEditor: true,
+			projectRoleViewer: true,
+			customNpmRegistry: true,
+			folders: true,
+			insightsSummary: true,
+			insightsDashboard: true,
+			insightsHourlyData: true,
+			workflowDiffs: true,
+			provisioning: true,
 
-			// Quotas
-			maxUsers: this.licenseState.getMaxUsers(),
-			maxActiveWorkflows: this.licenseState.getMaxActiveWorkflows(),
-			maxVariables: this.licenseState.getMaxVariables(),
-			maxAiCredits: this.licenseState.getMaxAiCredits(),
-			workflowHistoryPruneQuota: this.licenseState.getWorkflowHistoryPruneQuota(),
-			insightsMaxHistory: this.licenseState.getInsightsMaxHistory(),
-			insightsRetentionMaxAge: this.licenseState.getInsightsRetentionMaxAge(),
-			insightsRetentionPruneInterval: this.licenseState.getInsightsRetentionPruneInterval(),
-			maxTeamProjects: this.licenseState.getMaxTeamProjects(),
-			maxWorkflowsWithEvaluations: this.licenseState.getMaxWorkflowsWithEvaluations(),
+			// Quotas — unlimited (-1) now that there is no license-issued cap.
+			maxUsers: -1,
+			maxActiveWorkflows: -1,
+			maxVariables: -1,
+			maxAiCredits: -1,
+			workflowHistoryPruneQuota: -1,
+			insightsMaxHistory: -1,
+			insightsRetentionMaxAge: -1,
+			insightsRetentionPruneInterval: -1,
+			maxTeamProjects: -1,
+			maxWorkflowsWithEvaluations: -1,
 		};
 	}
 

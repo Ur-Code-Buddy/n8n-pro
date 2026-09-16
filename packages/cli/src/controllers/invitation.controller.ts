@@ -6,12 +6,9 @@ import { Post, GlobalScope, RestController, Body } from '@n8n/decorators';
 import { Response } from 'express';
 
 import { AuthService } from '@/auth/auth.service';
-import { RESPONSE_ERROR_MESSAGES } from '@/constants';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { EventService } from '@/events/event.service';
 import { ExternalHooks } from '@/external-hooks';
-import { License } from '@/license';
 import { PostHogClient } from '@/posthog';
 import { AuthlessRequest } from '@/requests';
 import { PasswordUtility } from '@/services/password.utility';
@@ -27,7 +24,6 @@ export class InvitationController {
 		private readonly externalHooks: ExternalHooks,
 		private readonly authService: AuthService,
 		private readonly userService: UserService,
-		private readonly license: License,
 		private readonly passwordUtility: PasswordUtility,
 		private readonly userRepository: UserRepository,
 		private readonly postHog: PostHogClient,
@@ -48,8 +44,6 @@ export class InvitationController {
 	) {
 		if (invitations.length === 0) return [];
 
-		const isWithinUsersLimit = this.license.isWithinUsersLimit();
-
 		if (isSsoCurrentAuthenticationMethod()) {
 			this.logger.debug(
 				'SSO is enabled, so users are managed by the Identity Provider and cannot be added through invites',
@@ -59,13 +53,6 @@ export class InvitationController {
 			);
 		}
 
-		if (!isWithinUsersLimit) {
-			this.logger.debug(
-				'Request to send email invite(s) to user(s) failed because the user limit quota has been reached',
-			);
-			throw new ForbiddenError(RESPONSE_ERROR_MESSAGES.USERS_QUOTA_REACHED);
-		}
-
 		if (!(await this.ownershipService.hasInstanceOwner())) {
 			this.logger.debug(
 				'Request to send email invite(s) to user(s) failed because the owner account is not set up',
@@ -73,14 +60,7 @@ export class InvitationController {
 			throw new BadRequestError('You must set up your own account before inviting others');
 		}
 
-		const attributes = invitations.map(({ email, role }) => {
-			if (role === 'global:admin' && !this.license.isAdvancedPermissionsLicensed()) {
-				throw new ForbiddenError(
-					'Cannot invite admin user without advanced permissions. Please upgrade to a license that includes this feature.',
-				);
-			}
-			return { email, role };
-		});
+		const attributes = invitations.map(({ email, role }) => ({ email, role }));
 
 		const { usersInvited, usersCreated } = await this.userService.inviteUsers(req.user, attributes);
 

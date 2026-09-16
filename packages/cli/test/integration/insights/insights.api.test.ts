@@ -14,7 +14,7 @@ mockInstance(Telemetry);
 
 const agents: Record<string, SuperAgentTest> = {};
 const testServer = utils.setupTestServer({
-	endpointGroups: ['insights', 'license', 'auth'],
+	endpointGroups: ['insights', 'auth'],
 	enabledFeatures: ['feat:insights:viewSummary', 'feat:insights:viewDashboard'],
 	quotas: { 'quota:insights:maxHistoryDays': 365 },
 	modules: ['insights'],
@@ -44,58 +44,7 @@ describe('GET /insights routes work for owner and admins for server with dashboa
 	);
 });
 
-describe('GET /insights routes return 403 for dashboard routes when summary license only', () => {
-	beforeAll(() => {
-		testServer.license.setDefaults({ features: ['feat:insights:viewSummary'] });
-	});
-	test.each(['owner', 'admin', 'member'])(
-		'Call should work and return empty summary for user %s',
-		async (agentName: string) => {
-			const authAgent = agents[agentName];
-			await authAgent.get('/insights/summary').expect(agentName.includes('member') ? 403 : 200);
-			await authAgent.get('/insights/by-time').expect(403);
-			await authAgent
-				.get('/insights/by-time/time-saved')
-				.expect(agentName.includes('member') ? 403 : 200);
-			await authAgent.get('/insights/by-workflow').expect(403);
-		},
-	);
-});
-
-describe('GET /insights routes return 403 if date range outside license limits', () => {
-	beforeAll(() => {
-		testServer.license.setDefaults({ quotas: { 'quota:insights:maxHistoryDays': 3 } });
-	});
-
-	test('Call should throw forbidden for default week insights', async () => {
-		const authAgent = agents.admin;
-		await authAgent.get('/insights/summary').expect(403);
-		await authAgent.get('/insights/by-time').expect(403);
-		await authAgent.get('/insights/by-time/time-saved').expect(403);
-		await authAgent.get('/insights/by-workflow').expect(403);
-	});
-
-	test('Call should throw forbidden for daily data without viewHourlyData enabled', async () => {
-		const authAgent = agents.admin;
-		await authAgent.get('/insights/summary?dateRange=day').expect(403);
-		await authAgent.get('/insights/by-time?dateRange=day').expect(403);
-		await authAgent.get('/insights/by-time/time-saved?dateRange=day').expect(403);
-		await authAgent.get('/insights/by-workflow?dateRange=day').expect(403);
-	});
-});
-
-describe('GET /insights routes return 200 if date range inside license limits', () => {
-	beforeAll(() => {
-		testServer.license.setDefaults({
-			features: [
-				'feat:insights:viewSummary',
-				'feat:insights:viewDashboard',
-				'feat:insights:viewHourlyData',
-			],
-			quotas: { 'quota:insights:maxHistoryDays': 365 },
-		});
-	});
-
+describe('GET /insights routes return 200 for any date range', () => {
 	test.each<InsightsDateRange['key']>([
 		'day',
 		'week',

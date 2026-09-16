@@ -10,7 +10,6 @@ import { InstanceSettings } from 'n8n-core';
 import { assert, type IUser } from 'n8n-workflow';
 
 import { N8N_VERSION } from '../constants';
-import { License } from '../license';
 
 @Service()
 export class AiService {
@@ -19,35 +18,21 @@ export class AiService {
 	private initPromise: Promise<void> | undefined;
 
 	constructor(
-		private readonly licenseService: License,
 		private readonly globalConfig: GlobalConfig,
 		private readonly instanceSettings: InstanceSettings,
 	) {}
 
 	async init() {
-		const aiAssistantEnabled = this.licenseService.isAiAssistantEnabled();
-
-		if (!aiAssistantEnabled) {
-			return;
-		}
-
-		const licenseCert = await this.licenseService.loadCertStr();
-		const consumerId = this.licenseService.getConsumerId();
 		const baseUrl = this.globalConfig.aiAssistant.baseUrl;
 		const logLevel = this.globalConfig.logging.level;
 
 		this.client = new AiAssistantClient({
-			licenseCert,
-			consumerId,
+			licenseCert: '',
+			consumerId: 'unknown',
 			n8nVersion: N8N_VERSION,
 			baseUrl,
 			logLevel,
 			instanceId: this.instanceSettings.instanceId,
-		});
-
-		// Register for license certificate updates
-		this.licenseService.onCertRefresh((cert) => {
-			this.client?.updateLicenseCert(cert);
 		});
 	}
 
@@ -66,9 +51,9 @@ export class AiService {
 		return await client.askAi(payload, { id: user.id });
 	}
 
-	/** Whether the AI service proxy is enabled (license + base URL configured). */
+	/** Whether the AI service proxy is enabled (base URL configured). */
 	isProxyEnabled(): boolean {
-		return this.licenseService.isAiAssistantEnabled() && !!this.globalConfig.aiAssistant.baseUrl;
+		return !!this.globalConfig.aiAssistant.baseUrl;
 	}
 
 	/** Return the initialized AiAssistantClient. Initializes lazily if needed. */
@@ -77,7 +62,7 @@ export class AiService {
 			this.initPromise ??= this.init();
 			await this.initPromise;
 			if (!this.client) {
-				this.initPromise = undefined; // allow retry after license activation
+				this.initPromise = undefined; // allow retry
 			}
 		}
 		assert(this.client, 'AI Assistant client not initialized');

@@ -1,4 +1,3 @@
-import { LicenseState } from '@n8n/backend-common';
 import type { CredentialsEntity } from '@n8n/db';
 import { CredentialsRepository } from '@n8n/db';
 import { Container } from '@n8n/di';
@@ -149,10 +148,6 @@ const credentialsHandlers: CredentialsHandlers = {
 			}
 
 			if (req.body.isGlobal !== undefined && req.body.isGlobal !== existingCredential.isGlobal) {
-				if (!Container.get(LicenseState).isSharingLicensed()) {
-					throw new ForbiddenError('You are not licensed for sharing credentials');
-				}
-
 				const canShareGlobally = hasGlobalScope(req.user, 'credential:shareGlobally');
 				if (!canShareGlobally) {
 					throw new ForbiddenError(

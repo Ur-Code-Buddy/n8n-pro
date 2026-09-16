@@ -1,20 +1,14 @@
 /* eslint-disable @typescript-eslint/no-invalid-void-type */
-import type { BooleanLicenseFeature } from '@n8n/constants';
 import type { AuthenticatedRequest } from '@n8n/db';
-import { Container } from '@n8n/di';
 import type { ApiKeyScope, Scope } from '@n8n/permissions';
 import type express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 
-import { FeatureNotLicensedError } from '@/errors/feature-not-licensed.error';
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
-import { License } from '@/license';
 import { userHasScopes } from '@/permissions.ee/check-access';
 import type { PaginatedRequest } from '@/public-api/types';
 
 import { decodeCursor } from '../services/pagination.service';
-
-const UNLIMITED_USERS_QUOTA = -1;
 
 export type ProjectScopeResource = 'workflow' | 'credential' | 'dataTable';
 
@@ -137,23 +131,14 @@ export const apiKeyHasScopeWithGlobalScopeFallback = (
 
 export const validLicenseWithUserQuota = (
 	_: express.Request,
-	res: express.Response,
+	_res: express.Response,
 	next: express.NextFunction,
 ): express.Response | void => {
-	const license = Container.get(License);
-	if (license.getUsersLimit() !== UNLIMITED_USERS_QUOTA) {
-		return res.status(403).json({
-			message: '/users path can only be used with a valid license. See https://n8n.io/pricing/',
-		});
-	}
-
 	return next();
 };
 
-export const isLicensed = (feature: BooleanLicenseFeature) => {
-	return async (_: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
-		if (Container.get(License).isLicensed(feature)) return next();
-
-		return res.status(403).json({ message: new FeatureNotLicensedError(feature).message });
+export const isLicensed = (_feature: string) => {
+	return async (_: AuthenticatedRequest, _res: express.Response, next: express.NextFunction) => {
+		return next();
 	};
 };

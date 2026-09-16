@@ -10,7 +10,6 @@ import { MissingModuleError } from './errors/missing-module.error';
 import { ModuleConfusionError } from './errors/module-confusion.error';
 import { ModulesConfig } from './modules.config';
 import type { ModuleName } from './modules.config';
-import { LicenseState } from '../license-state';
 import { Logger } from '../logging/logger';
 
 @Service()
@@ -25,7 +24,6 @@ export class ModuleRegistry {
 
 	constructor(
 		private readonly moduleMetadata: ModuleMetadata,
-		private readonly licenseState: LicenseState,
 		private readonly logger: Logger,
 		private readonly modulesConfig: ModulesConfig,
 	) {}
@@ -145,12 +143,7 @@ export class ModuleRegistry {
 	 */
 	async initModules(instanceType: InstanceType) {
 		for (const [moduleName, moduleEntry] of this.moduleMetadata.getEntries()) {
-			const { licenseFlag, instanceTypes, class: ModuleClass } = moduleEntry;
-
-			if (licenseFlag !== undefined && !this.licenseState.isLicensed(licenseFlag)) {
-				this.logger.debug(`Skipped init for unlicensed module "${moduleName}"`);
-				continue;
-			}
+			const { instanceTypes, class: ModuleClass } = moduleEntry;
 
 			if (instanceTypes !== undefined && !instanceTypes.includes(instanceType)) {
 				this.logger.debug(

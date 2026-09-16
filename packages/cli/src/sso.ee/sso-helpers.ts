@@ -1,4 +1,4 @@
-import { LicenseState, Logger } from '@n8n/backend-common';
+import { Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
 import { isAuthProviderType, SettingsRepository, type AuthProviderType } from '@n8n/db';
 import { Container } from '@n8n/di';
@@ -64,7 +64,7 @@ export function getSamlLoginLabel(): string {
 }
 
 export function isSamlLicensed(): boolean {
-	return Container.get(LicenseState).isSamlLicensed();
+	return true;
 }
 
 export function isSamlLicensedAndEnabled(): boolean {

@@ -8,12 +8,9 @@ import {
 import { SharedWorkflowRepository } from '@n8n/db';
 import { Container } from '@n8n/di';
 
-import { License } from '@/license';
 import { ProjectService } from '@/services/project.service.ee';
-import { LicenseMocker } from '@test-integration/license';
 
 import { createUser } from './shared/db/users';
-import { LicenseState } from '@n8n/backend-common';
 
 describe('ProjectService', () => {
 	let projectService: ProjectService;
@@ -24,11 +21,6 @@ describe('ProjectService', () => {
 
 		projectService = Container.get(ProjectService);
 		sharedWorkflowRepository = Container.get(SharedWorkflowRepository);
-
-		const license: LicenseMocker = new LicenseMocker();
-		license.mock(Container.get(License));
-		license.mockLicenseState(Container.get(LicenseState));
-		license.enable('feat:projectRole:editor');
 	});
 
 	afterEach(async () => {

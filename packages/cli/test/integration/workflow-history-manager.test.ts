@@ -1,22 +1,15 @@
-import {
-	createWorkflow,
-	testDb,
-	mockInstance,
-	createActiveWorkflow,
-} from '@n8n/backend-test-utils';
+import { createWorkflow, testDb, createActiveWorkflow } from '@n8n/backend-test-utils';
 import { GlobalConfig } from '@n8n/config';
 import { WorkflowHistoryRepository, WorkflowRepository } from '@n8n/db';
 import { Container } from '@n8n/di';
 import { In } from '@n8n/typeorm';
 import { DateTime } from 'luxon';
 
-import { License } from '@/license';
 import { WorkflowHistoryManager } from '@/workflows/workflow-history/workflow-history-manager';
 
 import { createManyWorkflowHistoryItems } from './shared/db/workflow-history';
 
 describe('Workflow History Manager', () => {
-	const license = mockInstance(License);
 	let repo: WorkflowHistoryRepository;
 	let manager: WorkflowHistoryManager;
 	let globalConfig: GlobalConfig;
@@ -33,8 +26,6 @@ describe('Workflow History Manager', () => {
 		jest.clearAllMocks();
 
 		globalConfig.workflowHistory.pruneTime = -1;
-
-		license.getWorkflowHistoryPruneLimit.mockReturnValue(-1);
 	});
 
 	afterAll(async () => {
@@ -67,13 +58,6 @@ describe('Workflow History Manager', () => {
 
 	test('should prune when config prune time is not -1 (infinite)', async () => {
 		globalConfig.workflowHistory.pruneTime = 24;
-		await createWorkflowHistory();
-		await pruneAndAssertCount(0);
-	});
-
-	test('should prune when license prune time is not -1 (infinite)', async () => {
-		license.getWorkflowHistoryPruneLimit.mockReturnValue(24);
-
 		await createWorkflowHistory();
 		await pruneAndAssertCount(0);
 	});
@@ -165,9 +149,8 @@ describe('Workflow History Manager', () => {
 		expect(await repo.count({ where: { versionId: In(otherVersionIds) } })).toBe(0);
 	});
 
-	test('should not prune named versions when license feature is enabled', async () => {
+	test('should not prune named versions', async () => {
 		globalConfig.workflowHistory.pruneTime = 24;
-		license.isLicensed.mockImplementation((feature: string) => feature === 'feat:namedVersions');
 
 		const workflow = await createWorkflow();
 		const oldDate = DateTime.now().minus({ days: 2 }).toJSDate();
@@ -187,8 +170,6 @@ describe('Workflow History Manager', () => {
 
 		await manager.prune();
 
-		expect(license.isLicensed).toHaveBeenCalledWith('feat:namedVersions');
-
 		// Named versions should be preserved
 		expect(await repo.count({ where: { versionId: versions[0].versionId } })).toBe(1);
 		expect(await repo.count({ where: { versionId: versions[1].versionId } })).toBe(1);
@@ -197,31 +178,6 @@ describe('Workflow History Manager', () => {
 		// Unnamed versions should be deleted
 		expect(await repo.count({ where: { versionId: versions[3].versionId } })).toBe(0);
 		expect(await repo.count({ where: { versionId: versions[4].versionId } })).toBe(0);
-	});
-
-	test('should prune named versions when license feature is disabled', async () => {
-		globalConfig.workflowHistory.pruneTime = 24;
-		license.isLicensed.mockReturnValue(false);
-
-		const workflow = await createWorkflow();
-		const oldDate = DateTime.now().minus({ days: 2 }).toJSDate();
-
-		const versions = await createManyWorkflowHistoryItems(workflow.id, 3, oldDate);
-
-		// Set names on versions
-		await repo.update({ versionId: versions[0].versionId }, { name: 'Named Version 1' });
-		await repo.update({ versionId: versions[1].versionId }, { name: 'Named Version 2' });
-		await repo.update(
-			{ versionId: versions[2].versionId },
-			{ name: 'Named Version 3', description: 'Version with description' },
-		);
-
-		await manager.prune();
-
-		// All versions should be deleted
-		expect(await repo.count({ where: { versionId: In(versions.map((v) => v.versionId)) } })).toBe(
-			0,
-		);
 	});
 
 	const createWorkflowHistory = async (ageInDays = 2) => {

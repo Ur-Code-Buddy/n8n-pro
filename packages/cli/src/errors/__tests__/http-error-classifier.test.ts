@@ -1,11 +1,20 @@
 import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { OperationalError, UnexpectedError, UserError } from 'n8n-workflow';
 
+import { ResponseError } from '@/errors/response-errors/abstract/response.error';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { LicenseEulaRequiredError } from '@/errors/response-errors/license-eula-required.error';
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
 
 import { classifyHttpError, HttpErrorKind, isResponseError } from '../http-error-classifier';
+
+class TestErrorWithMeta extends ResponseError {
+	readonly meta: Record<string, unknown>;
+
+	constructor(message: string, meta: Record<string, unknown>) {
+		super(message, 400);
+		this.meta = meta;
+	}
+}
 
 describe('classifyHttpError', () => {
 	it('tags ResponseError with kind responseError and http fields', () => {
@@ -60,13 +69,9 @@ describe('classifyHttpError', () => {
 		});
 	});
 
-	it('includes meta for LicenseEulaRequiredError', () => {
+	it('includes meta for errors that carry one', () => {
 		const eulaUrl = 'https://n8n.io/legal/eula/';
-		const d = classifyHttpError(
-			new LicenseEulaRequiredError('License activation requires EULA acceptance', {
-				eulaUrl,
-			}),
-		);
+		const d = classifyHttpError(new TestErrorWithMeta('Some error with meta', { eulaUrl }));
 		expect(d.kind).toBe(HttpErrorKind.responseError);
 		if (d.kind === HttpErrorKind.responseError) {
 			expect(d.status).toBe(400);

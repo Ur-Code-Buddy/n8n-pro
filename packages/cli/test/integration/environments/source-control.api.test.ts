@@ -24,7 +24,7 @@ let projectAdmin: User;
 mockInstance(Telemetry);
 
 const testServer = utils.setupTestServer({
-	endpointGroups: ['sourceControl', 'license', 'auth'],
+	endpointGroups: ['sourceControl', 'auth'],
 	enabledFeatures: ['feat:sourceControl', 'feat:sharing'],
 });
 

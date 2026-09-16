@@ -1,5 +1,4 @@
 import type { UpsertEvaluationConfigDto } from '@n8n/api-types';
-import type { LicenseState } from '@n8n/backend-common';
 import type { EvaluationConfig, EvaluationConfigRepository } from '@n8n/db';
 import type { User, WorkflowEntity } from '@n8n/db';
 import { mock } from 'jest-mock-extended';
@@ -38,22 +37,19 @@ describe('EvaluationConfigService', () => {
 	let service: EvaluationConfigService;
 	let repository: jest.Mocked<EvaluationConfigRepository>;
 	let validator: jest.Mocked<EvaluationConfigValidator>;
-	let licenseState: jest.Mocked<LicenseState>;
 	let workflow: WorkflowEntity;
 
 	beforeEach(() => {
 		repository = mock<EvaluationConfigRepository>();
 		validator = mock<EvaluationConfigValidator>();
-		licenseState = mock<LicenseState>();
 		workflow = makeWorkflow();
 
 		repository.listByWorkflowId.mockResolvedValue([]);
 		repository.countDistinctWorkflowsWithConfigs.mockResolvedValue(0);
 		repository.findByIdAndWorkflowId.mockResolvedValue(null);
-		licenseState.getMaxWorkflowsWithEvaluations.mockReturnValue(10);
 		validator.validate.mockResolvedValue([]);
 
-		service = new EvaluationConfigService(repository, validator, licenseState);
+		service = new EvaluationConfigService(repository, validator);
 	});
 
 	describe('list', () => {
@@ -95,18 +91,7 @@ describe('EvaluationConfigService', () => {
 			expect(result).toBe(persisted);
 		});
 
-		it('throws EVALUATION_QUOTA_EXCEEDED when adding a first config exceeds the limit', async () => {
-			licenseState.getMaxWorkflowsWithEvaluations.mockReturnValueOnce(2);
-			repository.countDistinctWorkflowsWithConfigs.mockResolvedValueOnce(2);
-
-			await expect(
-				service.create('wf-1', workflow, makeUser(), makePayload()),
-			).rejects.toMatchObject({ code: 'EVALUATION_QUOTA_EXCEEDED' });
-			expect(repository.createForWorkflow).not.toHaveBeenCalled();
-		});
-
-		it('does not check quota when the workflow already has at least one config', async () => {
-			licenseState.getMaxWorkflowsWithEvaluations.mockReturnValueOnce(2);
+		it('creates a config when the workflow already has at least one config', async () => {
 			repository.countDistinctWorkflowsWithConfigs.mockResolvedValueOnce(2);
 			repository.listByWorkflowId.mockResolvedValueOnce([
 				{ id: 'existing', workflowId: 'wf-1' } as EvaluationConfig,

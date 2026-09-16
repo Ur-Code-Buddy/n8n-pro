@@ -1,4 +1,4 @@
-import type { LicenseState } from '@n8n/backend-common';
+import { mockInstance } from '@n8n/backend-test-utils';
 import type { GlobalConfig, WorkflowsConfig } from '@n8n/config';
 import type {
 	Project,
@@ -28,6 +28,7 @@ import type { WebhookService } from '@/webhooks/webhook.service';
 import type { WorkflowFinderService } from '@/workflows/workflow-finder.service';
 import type { WorkflowHistoryService } from '@/workflows/workflow-history/workflow-history.service';
 import { WorkflowService } from '@/workflows/workflow.service';
+import { EnterpriseWorkflowService } from '@/workflows/workflow.service.ee';
 import type { WorkflowValidationService } from '@/workflows/workflow-validation.service';
 import * as WorkflowHelpers from '@/workflow-helpers';
 
@@ -56,6 +57,10 @@ describe('WorkflowService', () => {
 
 			webhookServiceMock = mock<WebhookService>();
 
+			mockInstance(EnterpriseWorkflowService).getWorkflowIdsWithResolvableCredentials.mockResolvedValue(
+				new Set(),
+			);
+
 			workflowService = new WorkflowService(
 				mock(), // logger
 				mock(), // sharedWorkflowRepository
@@ -82,7 +87,6 @@ describe('WorkflowService', () => {
 				}), // workflowValidationService
 				mock(), // nodeTypes
 				webhookServiceMock, // webhookService
-				mock(), // licenseState
 				mock(), // projectRepository
 				mock(), // redactionEnforcementService
 			);
@@ -189,7 +193,6 @@ describe('WorkflowService', () => {
 		const userHasScopesMock = jest.mocked(userHasScopes);
 		let workflowService: WorkflowService;
 		let workflowFinderServiceMock: MockProxy<WorkflowFinderService>;
-		let licenseStateMock: MockProxy<LicenseState>;
 		let redactionEnforcementServiceMock: MockProxy<RedactionEnforcementService>;
 		let workflowRepositoryMock: MockProxy<{
 			update: jest.Mock;
@@ -199,14 +202,14 @@ describe('WorkflowService', () => {
 		beforeEach(() => {
 			workflowFinderServiceMock = mock<WorkflowFinderService>();
 			workflowRepositoryMock = mock();
-			licenseStateMock = mock<LicenseState>();
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(true);
 			redactionEnforcementServiceMock = mock<RedactionEnforcementService>();
 
 			const ownershipServiceMock = mock<OwnershipService>();
 			ownershipServiceMock.getWorkflowProjectCached.mockResolvedValue(
 				mock<Project>({ id: 'project-1' }),
 			);
+
+			mockInstance(EnterpriseWorkflowService);
 
 			workflowService = new WorkflowService(
 				mock(), // logger
@@ -234,7 +237,6 @@ describe('WorkflowService', () => {
 				}), // workflowValidationService
 				mock(), // nodeTypes
 				mock(), // webhookService
-				licenseStateMock, // licenseState
 				mock(), // projectRepository
 				redactionEnforcementServiceMock, // redactionEnforcementService
 			);
@@ -431,29 +433,8 @@ describe('WorkflowService', () => {
 			expect(userHasScopesMock).not.toHaveBeenCalled();
 		});
 
-		test('should strip redactionPolicy when instance lacks data-redaction license', async () => {
+		test('should not strip redactionPolicy when user has the required scope', async () => {
 			setupExistingWorkflow({ redactionPolicy: 'none' });
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(false);
-
-			const user = mock<User>();
-			await workflowService.update(
-				user,
-				createUpdateData({ redactionPolicy: 'all' }),
-				'workflow-1',
-				{ forceSave: true },
-			);
-
-			expect(workflowRepositoryMock.update).toHaveBeenCalledWith(
-				'workflow-1',
-				expect.objectContaining({
-					settings: expect.not.objectContaining({ redactionPolicy: 'all' }),
-				}),
-			);
-		});
-
-		test('should not strip redactionPolicy when instance has data-redaction license', async () => {
-			setupExistingWorkflow({ redactionPolicy: 'none' });
-			licenseStateMock.isDataRedactionLicensed.mockReturnValue(true);
 			userHasScopesMock.mockResolvedValue(true);
 
 			const user = mock<User>();
@@ -873,7 +854,6 @@ describe('WorkflowService', () => {
 				}), // workflowValidationService
 				mock(), // nodeTypes
 				mock(), // webhookService
-				mock(), // licenseState
 				mock(), // projectRepository
 				mock(), // redactionEnforcementService
 			);

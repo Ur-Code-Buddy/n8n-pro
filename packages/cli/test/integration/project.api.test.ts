@@ -688,67 +688,12 @@ describe('POST /projects/', () => {
 		expect(resp.body.data.role).toBe('project:admin');
 	});
 
-	test('should allow to create a team projects if below the quota', async () => {
-		testServer.license.setQuota('quota:maxTeamProjects', 1);
+	test('should allow creating team projects without limit', async () => {
 		const ownerUser = await createOwner();
 		const ownerAgent = testServer.authAgentFor(ownerUser);
 
 		await ownerAgent.post('/projects/').send({ name: 'Test Team Project' }).expect(200);
 		expect(await Container.get(ProjectRepository).count({ where: { type: 'team' } })).toBe(1);
-	});
-
-	test('should fail to create a team project if at quota', async () => {
-		testServer.license.setQuota('quota:maxTeamProjects', 1);
-		await Promise.all([createTeamProject()]);
-		const ownerUser = await createOwner();
-		const ownerAgent = testServer.authAgentFor(ownerUser);
-
-		await ownerAgent.post('/projects/').send({ name: 'Test Team Project' }).expect(400, {
-			code: 400,
-			message:
-				'Attempted to create a new project but quota is already exhausted. You may have a maximum of 1 team projects.',
-		});
-
-		expect(await Container.get(ProjectRepository).count({ where: { type: 'team' } })).toBe(1);
-	});
-
-	test('should fail to create a team project if above the quota', async () => {
-		testServer.license.setQuota('quota:maxTeamProjects', 1);
-		await Promise.all([createTeamProject(), createTeamProject()]);
-		const ownerUser = await createOwner();
-		const ownerAgent = testServer.authAgentFor(ownerUser);
-
-		await ownerAgent.post('/projects/').send({ name: 'Test Team Project' }).expect(400, {
-			code: 400,
-			message:
-				'Attempted to create a new project but quota is already exhausted. You may have a maximum of 1 team projects.',
-		});
-
-		expect(await Container.get(ProjectRepository).count({ where: { type: 'team' } })).toBe(2);
-	});
-
-	test('should respect the quota when trying to create multiple projects in parallel (no race conditions)', async () => {
-		expect(await Container.get(ProjectRepository).count({ where: { type: 'team' } })).toBe(0);
-		const maxTeamProjects = 3;
-		testServer.license.setQuota('quota:maxTeamProjects', maxTeamProjects);
-		const ownerUser = await createOwner();
-		const ownerAgent = testServer.authAgentFor(ownerUser);
-		await expect(Container.get(ProjectRepository).count({ where: { type: 'team' } })).resolves.toBe(
-			0,
-		);
-
-		await Promise.all([
-			ownerAgent.post('/projects/').send({ name: 'Test Team Project 1' }),
-			ownerAgent.post('/projects/').send({ name: 'Test Team Project 2' }),
-			ownerAgent.post('/projects/').send({ name: 'Test Team Project 3' }),
-			ownerAgent.post('/projects/').send({ name: 'Test Team Project 4' }),
-			ownerAgent.post('/projects/').send({ name: 'Test Team Project 5' }),
-			ownerAgent.post('/projects/').send({ name: 'Test Team Project 6' }),
-		]);
-
-		await expect(Container.get(ProjectRepository).count({ where: { type: 'team' } })).resolves.toBe(
-			maxTeamProjects,
-		);
 	});
 });
 
@@ -918,65 +863,6 @@ describe('PATCH /projects/:projectId', () => {
 			},
 		);
 
-		test.each([
-			['project:viewer', 'feat:projectRole:viewer'],
-			['project:editor', 'feat:projectRole:editor'],
-		] as const)(
-			"should not be able to add a user with the role %s if it's not licensed",
-			async (role, feature) => {
-				testServer.license.disable(feature);
-				const [projectAdmin, userToBeInvited] = await Promise.all([createUser(), createUser()]);
-				const teamProject = await createTeamProject('Team Project', projectAdmin);
-
-				await testServer
-					.authAgentFor(projectAdmin)
-					.post(`/projects/${teamProject.id}/users`)
-					.send({
-						relations: [{ userId: userToBeInvited.id, role }],
-					})
-					.expect(400);
-
-				const tpRelations = await getProjectRelations({ projectId: teamProject.id });
-				expect(tpRelations.length).toBe(1);
-				expect(tpRelations).toMatchObject(
-					expect.arrayContaining([
-						expect.objectContaining({
-							userId: projectAdmin.id,
-							role: expect.objectContaining({ slug: 'project:admin' }),
-						}),
-					]),
-				);
-			},
-		);
-
-		test("should not edit a relation of a project when changing a user's role to an unlicensed role", async () => {
-			testServer.license.disable('feat:projectRole:editor');
-			const [testUser1, testUser2, testUser3] = await Promise.all([
-				createUser(),
-				createUser(),
-				createUser(),
-			]);
-			const teamProject = await createTeamProject(undefined, testUser2);
-
-			await linkUserToProject(testUser1, teamProject, 'project:admin');
-			await linkUserToProject(testUser3, teamProject, 'project:admin');
-
-			const memberAgent = testServer.authAgentFor(testUser2);
-
-			const resp = await memberAgent
-				.patch(`/projects/${teamProject.id}/users/${testUser1.id}`)
-				.send({ role: 'project:editor' });
-			expect(resp.status).toBe(400);
-
-			const tpRelations = await getProjectRelations({ projectId: teamProject.id });
-			expect(tpRelations.length).toBe(3);
-
-			expect(tpRelations.find((p) => p.userId === testUser1.id)).not.toBeUndefined();
-			expect(tpRelations.find((p) => p.userId === testUser2.id)).not.toBeUndefined();
-			expect(tpRelations.find((p) => p.userId === testUser1.id)?.role?.slug).toBe('project:admin');
-			expect(tpRelations.find((p) => p.userId === testUser2.id)?.role?.slug).toBe('project:admin');
-			expect(tpRelations.find((p) => p.userId === testUser3.id)?.role?.slug).toBe('project:admin');
-		});
 
 		test("should  edit a relation of a project when changing a user's role to an licensed role but unlicensed roles are present", async () => {
 			testServer.license.disable('feat:projectRole:viewer');

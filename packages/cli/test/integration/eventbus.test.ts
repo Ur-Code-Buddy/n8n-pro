@@ -1,11 +1,8 @@
 import { mockInstance } from '@n8n/backend-test-utils';
-import { GLOBAL_OWNER_ROLE, type User } from '@n8n/db';
 
 import { MessageEventBus } from '@/eventbus/message-event-bus/message-event-bus';
 import { ExecutionRecoveryService } from '@/executions/execution-recovery.service';
 
-import { createUser } from './shared/db/users';
-import type { SuperAgentTest } from './shared/types';
 import * as utils from './shared/utils/';
 
 /**
@@ -14,30 +11,16 @@ import * as utils from './shared/utils/';
  * The tests in this file are only checking endpoint permissions.
  */
 
-let owner: User;
-let authOwnerAgent: SuperAgentTest;
-
 mockInstance(MessageEventBus);
 mockInstance(ExecutionRecoveryService);
 const testServer = utils.setupTestServer({
 	endpointGroups: ['eventBus'],
-	enabledFeatures: [], // do not enable logstreaming
-});
-
-beforeAll(async () => {
-	owner = await createUser({ role: GLOBAL_OWNER_ROLE });
-	authOwnerAgent = testServer.authAgentFor(owner);
 });
 
 describe('GET /eventbus/destination', () => {
 	test('should fail due to missing authentication', async () => {
 		const response = await testServer.authlessAgent.get('/eventbus/destination');
 		expect(response.statusCode).toBe(401);
-	});
-
-	test('should fail due to missing license when authenticated', async () => {
-		const response = await authOwnerAgent.get('/eventbus/destination');
-		expect(response.statusCode).toBe(403);
 	});
 });
 
@@ -46,21 +29,11 @@ describe('POST /eventbus/destination', () => {
 		const response = await testServer.authlessAgent.post('/eventbus/destination');
 		expect(response.statusCode).toBe(401);
 	});
-
-	test('should fail due to missing license when authenticated', async () => {
-		const response = await authOwnerAgent.post('/eventbus/destination');
-		expect(response.statusCode).toBe(403);
-	});
 });
 
 describe('DELETE /eventbus/destination', () => {
 	test('should fail due to missing authentication', async () => {
 		const response = await testServer.authlessAgent.del('/eventbus/destination');
 		expect(response.statusCode).toBe(401);
-	});
-
-	test('should fail due to missing license when authenticated', async () => {
-		const response = await authOwnerAgent.del('/eventbus/destination');
-		expect(response.statusCode).toBe(403);
 	});
 });

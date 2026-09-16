@@ -1,6 +1,5 @@
-import { LicenseState, ModuleRegistry } from '@n8n/backend-common';
+import { ModuleRegistry } from '@n8n/backend-common';
 import { testDb, testModules } from '@n8n/backend-test-utils';
-import { LICENSE_FEATURES } from '@n8n/constants';
 import type { WorkflowEntity } from '@n8n/db';
 import { ExecutionRepository } from '@n8n/db';
 import { Container } from '@n8n/di';
@@ -47,10 +46,6 @@ export async function initOtelTestEnvironment() {
 	await testModules.loadModules(['otel']);
 	await testDb.init();
 	await Container.get(ModuleRegistry).initModules('main');
-	Container.get(LicenseState).setLicenseProvider({
-		isLicensed: (feature) => feature === LICENSE_FEATURES.OTEL_CUSTOM_SPAN_ATTRIBUTES,
-		getValue: () => undefined,
-	});
 	const distNodes = loadNodesFromDist([
 		'n8n-nodes-base.executeWorkflow',
 		'n8n-nodes-base.executeWorkflowTrigger',

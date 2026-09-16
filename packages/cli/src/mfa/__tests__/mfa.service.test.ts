@@ -1,4 +1,3 @@
-import type { LicenseState } from '@n8n/backend-common';
 import { mockLogger } from '@n8n/backend-test-utils';
 import type { SettingsRepository, UserRepository } from '@n8n/db';
 import { mock } from 'jest-mock-extended';
@@ -15,7 +14,6 @@ describe('MfaService', () => {
 	let mockUserRepository: jest.Mocked<UserRepository>;
 	let mockSettingsRepository: jest.Mocked<SettingsRepository>;
 	let mockCacheService: jest.Mocked<CacheService>;
-	let mockLicense: jest.Mocked<LicenseState>;
 	let mockTotpService: jest.Mocked<TOTPService>;
 	let mockCipher: jest.Mocked<Cipher>;
 
@@ -25,7 +23,6 @@ describe('MfaService', () => {
 		mockUserRepository = mock<UserRepository>();
 		mockSettingsRepository = mock<SettingsRepository>();
 		mockCacheService = mock<CacheService>();
-		mockLicense = mock<LicenseState>();
 		mockTotpService = mock<TOTPService>();
 		mockCipher = mock<Cipher>();
 
@@ -33,7 +30,6 @@ describe('MfaService', () => {
 			mockUserRepository,
 			mockSettingsRepository,
 			mockCacheService,
-			mockLicense,
 			mockTotpService,
 			mockCipher,
 			mockLogger(),
@@ -41,18 +37,7 @@ describe('MfaService', () => {
 	});
 
 	describe('isMFAEnforced', () => {
-		it('should return false when license does not allow MFA enforcement', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(false);
-
-			const result = await mfaService.isMFAEnforced();
-
-			expect(result).toBe(false);
-			expect(mockLicense.isMFAEnforcementLicensed).toHaveBeenCalledTimes(1);
-			expect(mockCacheService.get).not.toHaveBeenCalled();
-		});
-
 		it('should return true when cached value is "true"', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
 			mockCacheService.get.mockResolvedValue('true');
 
 			const result = await mfaService.isMFAEnforced();
@@ -63,7 +48,6 @@ describe('MfaService', () => {
 		});
 
 		it('should return false when cached value is "false"', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
 			mockCacheService.get.mockResolvedValue('false');
 
 			const result = await mfaService.isMFAEnforced();
@@ -74,7 +58,6 @@ describe('MfaService', () => {
 		});
 
 		it('should return false when cached value is any other string', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
 			mockCacheService.get.mockResolvedValue('some-other-value');
 
 			const result = await mfaService.isMFAEnforced();
@@ -85,7 +68,6 @@ describe('MfaService', () => {
 		});
 
 		it('should load from settings when cache is null', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
 			mockCacheService.get.mockResolvedValue(null);
 			mockSettingsRepository.findByKey.mockResolvedValue({
 				key: MFA_ENFORCE_SETTING,
@@ -102,7 +84,6 @@ describe('MfaService', () => {
 		});
 
 		it('should load from settings when cache is undefined', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
 			mockCacheService.get.mockResolvedValue(undefined);
 			mockSettingsRepository.findByKey.mockResolvedValue({
 				key: MFA_ENFORCE_SETTING,
@@ -119,7 +100,6 @@ describe('MfaService', () => {
 		});
 
 		it('should return false when settings value is "false"', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
 			mockCacheService.get.mockResolvedValue(null);
 			mockSettingsRepository.findByKey.mockResolvedValue({
 				key: MFA_ENFORCE_SETTING,
@@ -135,7 +115,6 @@ describe('MfaService', () => {
 		});
 
 		it('should return false when settings value is null', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
 			mockCacheService.get.mockResolvedValue(null);
 			mockSettingsRepository.findByKey.mockResolvedValue(null);
 
@@ -147,7 +126,6 @@ describe('MfaService', () => {
 		});
 
 		it('should return false when settings value is empty string', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
 			mockCacheService.get.mockResolvedValue(null);
 			mockSettingsRepository.findByKey.mockResolvedValue({
 				key: MFA_ENFORCE_SETTING,
@@ -164,12 +142,9 @@ describe('MfaService', () => {
 	});
 
 	describe('enforceMFA', () => {
-		it('should enforce MFA when license allows and value is true', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
-
+		it('should enforce MFA when value is true', async () => {
 			await mfaService.enforceMFA(true);
 
-			expect(mockLicense.isMFAEnforcementLicensed).toHaveBeenCalledTimes(1);
 			expect(mockSettingsRepository.upsert).toHaveBeenCalledWith(
 				{
 					key: MFA_ENFORCE_SETTING,
@@ -181,29 +156,9 @@ describe('MfaService', () => {
 			expect(mockCacheService.set).toHaveBeenCalledWith(MFA_CACHE_KEY, 'true');
 		});
 
-		it('should disable MFA enforcement when license allows and value is false', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(true);
-
+		it('should disable MFA enforcement when value is false', async () => {
 			await mfaService.enforceMFA(false);
 
-			expect(mockLicense.isMFAEnforcementLicensed).toHaveBeenCalledTimes(1);
-			expect(mockSettingsRepository.upsert).toHaveBeenCalledWith(
-				{
-					key: MFA_ENFORCE_SETTING,
-					value: 'false',
-					loadOnStartup: true,
-				},
-				['key'],
-			);
-			expect(mockCacheService.set).toHaveBeenCalledWith(MFA_CACHE_KEY, 'false');
-		});
-
-		it('should force value to false when license does not allow MFA enforcement', async () => {
-			mockLicense.isMFAEnforcementLicensed.mockReturnValue(false);
-
-			await mfaService.enforceMFA(true);
-
-			expect(mockLicense.isMFAEnforcementLicensed).toHaveBeenCalledTimes(1);
 			expect(mockSettingsRepository.upsert).toHaveBeenCalledWith(
 				{
 					key: MFA_ENFORCE_SETTING,

@@ -1,4 +1,4 @@
-import type { LicenseState, Logger, ModuleRegistry } from '@n8n/backend-common';
+import type { Logger, ModuleRegistry } from '@n8n/backend-common';
 import type { GlobalConfig, SecurityConfig } from '@n8n/config';
 import { Container } from '@n8n/di';
 import { mock } from 'jest-mock-extended';
@@ -7,7 +7,6 @@ import type { ICredentialType, INodeTypeDescription } from 'n8n-workflow';
 
 import type { CredentialTypes } from '@/credential-types';
 import type { CredentialsOverwrites } from '@/credentials-overwrites';
-import type { License } from '@/license';
 import type { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import type { MfaService } from '@/mfa/mfa.service';
 import { CommunityPackagesConfig } from '@/modules/community-packages/community-packages.config';
@@ -55,13 +54,12 @@ describe('FrontendService', () => {
 			concurrency: { productionLimit: -1, evaluationLimit: -1 },
 		},
 		hideUsagePage: false,
-		license: { tenantId: 1 },
 		mfa: { enabled: false },
 		deployment: { type: 'default' },
 		workflowHistory: { pruneTime: 24 },
 		path: '/',
 		sso: {
-			ldap: { loginEnabled: false },
+			ldap: { loginEnabled: false, loginLabel: '' },
 			saml: { loginEnabled: false },
 			oidc: { loginEnabled: false },
 		},
@@ -108,33 +106,6 @@ describe('FrontendService', () => {
 		getAll: jest.fn().mockReturnValue({}),
 	});
 
-	const license = mock<License>({
-		getUsersLimit: jest.fn().mockReturnValue(100),
-		getPlanName: jest.fn().mockReturnValue('Community'),
-		getConsumerId: jest.fn().mockReturnValue('test-consumer'),
-		isSharingEnabled: jest.fn().mockReturnValue(false),
-		isLogStreamingEnabled: jest.fn().mockReturnValue(false),
-		isLdapEnabled: jest.fn().mockReturnValue(false),
-		isSamlEnabled: jest.fn().mockReturnValue(false),
-		isAdvancedExecutionFiltersEnabled: jest.fn().mockReturnValue(false),
-		isVariablesEnabled: jest.fn().mockReturnValue(false),
-		isSourceControlLicensed: jest.fn().mockReturnValue(false),
-		isExternalSecretsEnabled: jest.fn().mockReturnValue(false),
-		isLicensed: jest.fn().mockReturnValue(false),
-		isDebugInEditorLicensed: jest.fn().mockReturnValue(false),
-		isWorkerViewLicensed: jest.fn().mockReturnValue(false),
-		isAdvancedPermissionsLicensed: jest.fn().mockReturnValue(false),
-
-		getVariablesLimit: jest.fn().mockReturnValue(0),
-		getTeamProjectLimit: jest.fn().mockReturnValue(0),
-		isBinaryDataS3Licensed: jest.fn().mockReturnValue(false),
-		isAiAssistantEnabled: jest.fn().mockReturnValue(false),
-		isAskAiEnabled: jest.fn().mockReturnValue(false),
-		isAiCreditsEnabled: jest.fn().mockReturnValue(false),
-		getAiCredits: jest.fn().mockReturnValue(0),
-		isFoldersEnabled: jest.fn().mockReturnValue(false),
-	});
-
 	const mailer = mock<UserManagementMailer>({
 		isEmailSetUp: false,
 	});
@@ -153,13 +124,6 @@ describe('FrontendService', () => {
 
 	const pushConfig = mock<PushConfig>({
 		backend: 'websocket',
-	});
-
-	const licenseState = mock<LicenseState>({
-		isOidcLicensed: jest.fn().mockReturnValue(false),
-		isMFAEnforcementLicensed: jest.fn().mockReturnValue(false),
-		isOtelCustomSpanAttributesLicensed: jest.fn().mockReturnValue(false),
-		getMaxWorkflowsWithEvaluations: jest.fn().mockReturnValue(0),
 	});
 
 	const moduleRegistry = mock<ModuleRegistry>({
@@ -193,20 +157,17 @@ describe('FrontendService', () => {
 				loadNodesAndCredentials,
 				credentialTypes,
 				credentialsOverwrites,
-				license,
 				mailer,
 				instanceSettings,
 				urlService,
 				securityConfig,
 				pushConfig,
 				binaryDataConfig,
-				licenseState,
 				moduleRegistry,
 				mfaService,
 				ownershipService,
 				aiUsageService,
 			),
-			license,
 		};
 	};
 
@@ -275,64 +236,27 @@ describe('FrontendService', () => {
 			expect(settings.communityNodesManagedByEnv).toBe(false);
 		});
 
-		it('refreshes evaluationConcurrencyLimit when license tier changes between getSettings calls', async () => {
-			// Env override unset for this test so the resolver follows the
-			// license-tier branch. The override is restored by the suite's
-			// afterEach via `process.env = originalEnv`.
+		it('returns unlimited (-1) evaluationConcurrencyLimit when env is unset', async () => {
 			delete process.env.N8N_CONCURRENCY_EVALUATION_LIMIT;
-			license.getPlanName.mockReturnValue('Community');
 
 			const { service } = createMockService();
-			const initial = await service.getSettings();
-			expect(initial.evaluationConcurrencyLimit).toBe(1);
-
-			// Simulate a license upgrade landing after settings have been
-			// initialised. The next getSettings() call must surface the new
-			// tier default without requiring an instance restart.
-			license.getPlanName.mockReturnValue('Enterprise');
-			const refreshed = await service.getSettings();
-			expect(refreshed.evaluationConcurrencyLimit).toBe(5);
+			const settings = await service.getSettings();
+			expect(settings.evaluationConcurrencyLimit).toBe(-1);
 		});
 
-		it('keeps env override winning over license tier on refresh', async () => {
-			// Operator-set env always wins, even after a license change.
+		it('keeps env override winning', async () => {
 			process.env.N8N_CONCURRENCY_EVALUATION_LIMIT = '7';
 			globalConfig.executions = {
 				...globalConfig.executions,
 				concurrency: { productionLimit: -1, evaluationLimit: 7 },
 			} as GlobalConfig['executions'];
-			license.getPlanName.mockReturnValue('Community');
-
-			const { service } = createMockService();
-			const initial = await service.getSettings();
-			expect(initial.evaluationConcurrencyLimit).toBe(7);
-
-			license.getPlanName.mockReturnValue('Enterprise');
-			const refreshed = await service.getSettings();
-			expect(refreshed.evaluationConcurrencyLimit).toBe(7);
-		});
-
-		it('surfaces the license-issued evaluation concurrency quota when env is unset', async () => {
-			// `quota:evaluations:concurrencyLimit` lets the license-management
-			// service raise (or lower) a customer's cap without a code change.
-			// With env unset, the FE settings must reflect the license value
-			// rather than the tier default.
-			delete process.env.N8N_CONCURRENCY_EVALUATION_LIMIT;
-			license.getPlanName.mockReturnValue('Community');
-			(license.getValue as jest.Mock).mockImplementation((feature: string) =>
-				feature === 'quota:evaluations:concurrencyLimit' ? 4 : undefined,
-			);
 
 			const { service } = createMockService();
 			const settings = await service.getSettings();
-			// Community tier would otherwise be 1; the license override lifts
-			// it to 4.
-			expect(settings.evaluationConcurrencyLimit).toBe(4);
+			expect(settings.evaluationConcurrencyLimit).toBe(7);
 		});
 
-		it('should surface whether custom OpenTelemetry span attributes are licensed', async () => {
-			licenseState.isOtelCustomSpanAttributesLicensed.mockReturnValue(true);
-
+		it('should surface custom OpenTelemetry span attributes as always enabled', async () => {
 			const { service } = createMockService();
 			const settings = await service.getSettings();
 
@@ -362,7 +286,7 @@ describe('FrontendService', () => {
 				authCookie: { secure: false },
 				communityNodesEnabled: false,
 				previewMode: false,
-				enterprise: { saml: false, ldap: false, oidc: false },
+				enterprise: { saml: true, ldap: true, oidc: true },
 			};
 
 			const { service } = createMockService();
@@ -392,7 +316,7 @@ describe('FrontendService', () => {
 				authCookie: { secure: false },
 				communityNodesEnabled: false,
 				previewMode: false,
-				enterprise: { saml: false, ldap: false, oidc: false },
+				enterprise: { saml: true, ldap: true, oidc: true },
 				mfa: {
 					enabled: false,
 					enforced: false,
@@ -534,35 +458,11 @@ describe('FrontendService', () => {
 	});
 
 	describe('aiBuilder setting', () => {
-		it('should initialize aiBuilder setting as disabled by default', async () => {
+		it('should always report aiBuilder as enabled', async () => {
 			const { service } = createMockService();
-			const initialSettings = await service.getSettings();
-			expect(initialSettings.aiBuilder).toEqual({
-				enabled: false,
-				setup: false,
-			});
-		});
-
-		it('should set aiBuilder.enabled to true when license has feat:aiBuilder', async () => {
-			const { service, license } = createMockService();
-
-			license.isLicensed.mockImplementation((feature) => {
-				return feature === 'feat:aiBuilder';
-			});
-
 			const settings = await service.getSettings();
 
 			expect(settings.aiBuilder.enabled).toBe(true);
-		});
-
-		it('should keep aiBuilder.enabled as false when license does not have feat:aiBuilder', async () => {
-			const { service, license } = createMockService();
-
-			license.isLicensed.mockReturnValue(false);
-
-			const settings = await service.getSettings();
-
-			expect(settings.aiBuilder.enabled).toBe(false);
 		});
 	});
 

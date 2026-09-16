@@ -3,7 +3,6 @@ import { BackendModule } from '@n8n/decorators';
 
 @BackendModule({
 	name: 'provisioning',
-	licenseFlag: ['feat:oidc', 'feat:saml', 'feat:ldap'],
 	instanceTypes: ['main'],
 })
 export class ProvisioningModule implements ModuleInterface {

@@ -1,6 +1,6 @@
 import type { User, ExecutionSummaries } from '@n8n/db';
 import { Get, Patch, Post, RestController } from '@n8n/decorators';
-import { PROJECT_OWNER_ROLE_SLUG, type Scope } from '@n8n/permissions';
+import type { Scope } from '@n8n/permissions';
 
 import { ExecutionService } from './execution.service';
 import { EnterpriseExecutionsService } from './execution.service.ee';
@@ -10,7 +10,6 @@ import { validateExecutionUpdatePayload } from './validation';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
-import { License } from '@/license';
 import { isPositiveInteger } from '@/utils';
 import { WorkflowSharingService } from '@/workflows/workflow-sharing.service';
 
@@ -20,18 +19,10 @@ export class ExecutionsController {
 		private readonly executionService: ExecutionService,
 		private readonly enterpriseExecutionService: EnterpriseExecutionsService,
 		private readonly workflowSharingService: WorkflowSharingService,
-		private readonly license: License,
 	) {}
 
 	private async getAccessibleWorkflowIds(user: User, scope: Scope) {
-		if (this.license.isSharingEnabled()) {
-			return await this.workflowSharingService.getSharedWorkflowIds(user, { scopes: [scope] });
-		} else {
-			return await this.workflowSharingService.getSharedWorkflowIds(user, {
-				workflowRoles: ['workflow:owner'],
-				projectRoles: [PROJECT_OWNER_ROLE_SLUG],
-			});
-		}
+		return await this.workflowSharingService.getSharedWorkflowIds(user, { scopes: [scope] });
 	}
 
 	@Get('/', { middlewares: [parseRangeQuery] })
@@ -40,11 +31,6 @@ export class ExecutionsController {
 
 		query.user = req.user;
 		query.sharingOptions = await this.executionService.buildSharingOptions('workflow:read');
-
-		if (!this.license.isAdvancedExecutionFiltersEnabled()) {
-			delete query.metadata;
-			delete query.annotationTags;
-		}
 
 		const noStatus = !query.status || query.status.length === 0;
 		const noRange = !query.range.lastId || !query.range.firstId;
@@ -99,9 +85,7 @@ export class ExecutionsController {
 
 		if (workflowIds.length === 0) throw new NotFoundError('Execution not found');
 
-		return this.license.isSharingEnabled()
-			? await this.enterpriseExecutionService.findOne(req, workflowIds)
-			: await this.executionService.findOne(req, workflowIds);
+		return await this.enterpriseExecutionService.findOne(req, workflowIds);
 	}
 
 	@Post('/:id/stop')

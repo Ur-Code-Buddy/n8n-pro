@@ -1,4 +1,3 @@
-import type { LicenseState } from '@n8n/backend-common';
 import type { User, CredentialsEntity, Project } from '@n8n/db';
 import type { SharedCredentials, SharedCredentialsRepository } from '@n8n/db';
 import { mock } from 'jest-mock-extended';
@@ -21,7 +20,6 @@ describe('EnterpriseCredentialsService', () => {
 	const roleService = mock<RoleService>();
 	const externalSecretsConfig = mock<ExternalSecretsConfig>();
 	const externalSecretsProviderAccessCheckService = mock<SecretsProviderAccessCheckService>();
-	const licenseState = mock<LicenseState>();
 
 	const service = new EnterpriseCredentialsService(
 		sharedCredentialsRepository,
@@ -32,7 +30,6 @@ describe('EnterpriseCredentialsService', () => {
 		roleService,
 		externalSecretsConfig,
 		externalSecretsProviderAccessCheckService,
-		licenseState,
 	);
 
 	beforeEach(() => {
@@ -96,7 +93,6 @@ describe('EnterpriseCredentialsService', () => {
 			credentialsFinderService.findCredentialForUser.mockResolvedValue(credential);
 			projectService.getProjectWithScope.mockResolvedValue(destinationProject);
 			externalSecretsConfig.externalSecretsForProjects = true;
-			licenseState.isExternalSecretsLicensed.mockReturnValue(true);
 		});
 
 		describe('external secrets', () => {
@@ -161,20 +157,6 @@ describe('EnterpriseCredentialsService', () => {
 
 			it('should skip validation when project-scoped secrets feature flag is disabled', async () => {
 				externalSecretsConfig.externalSecretsForProjects = false;
-				mockTransactionManager();
-
-				await expect(
-					service.transferOne(user, credentialId, destinationProjectId),
-				).resolves.toBeUndefined();
-
-				expect(credentialsService.decrypt).not.toHaveBeenCalled();
-				expect(
-					externalSecretsProviderAccessCheckService.isProviderAvailableInProject,
-				).not.toHaveBeenCalled();
-			});
-
-			it('should skip validation when external secrets are not licensed', async () => {
-				licenseState.isExternalSecretsLicensed.mockReturnValue(false);
 				mockTransactionManager();
 
 				await expect(
