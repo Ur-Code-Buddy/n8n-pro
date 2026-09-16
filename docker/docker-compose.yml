@@ -3,12 +3,60 @@ services:
     image: n8nio/n8n:local
     container_name: n8n
     restart: unless-stopped
+    expose:
+      - '5678'
     ports:
       - '5678:5678'
+    environment:
+      - VIRTUAL_HOST=${N8N_HOST}
+      - VIRTUAL_PORT=5678
+      - LETSENCRYPT_HOST=${N8N_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
     volumes:
       - n8n_data:/home/node/.n8n
     env_file:
       - .env
+    networks:
+      - proxy
+
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:1.6
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+    networks:
+      - proxy
+
+  acme-companion:
+    image: nginxproxy/acme-companion:2.4
+    container_name: nginx-proxy-acme
+    restart: unless-stopped
+    environment:
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+    volumes_from:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - acme:/etc/acme.sh
+    depends_on:
+      - nginx-proxy
+    networks:
+      - proxy
 
 volumes:
   n8n_data:
+  certs:
+  vhost:
+  html:
+  acme:
+
+networks:
+  proxy:
+    name: nginx-proxy

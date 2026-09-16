@@ -1,6 +1,6 @@
 # Docker quick start (fork)
 
-Run this fork's n8n in Docker with a single command. You only need the **public webhook URL** (where n8n is reachable from the internet, typically via a reverse proxy with TLS).
+Run this fork's n8n in Docker with a single command. TLS and reverse-proxying are handled automatically (`nginx-proxy` + `acme-companion`, Let's Encrypt) — you only need the **public webhook URL** (where n8n is reachable from the internet) and a contact email for certificate notices.
 
 ## Prerequisites
 
@@ -13,26 +13,43 @@ Run this fork's n8n in Docker with a single command. You only need the **public 
 From the repository root:
 
 ```bash
-pnpm docker:up https://n8n.yourdomain.com
+pnpm docker:up https://n8n.yourdomain.com --email you@example.com
 ```
 
 What this does:
 
 1. Writes `docker/.env` from your webhook URL (protocol, host, editor URL, fork license/owner defaults)
 2. Builds `n8nio/n8n:local` **only if the image is missing** (first run can take 20–40+ minutes)
-3. Starts n8n **detached** on port `5678` with restart policy `unless-stopped`
+3. Starts n8n, plus `nginx-proxy` + `acme-companion`, **detached**, with restart policy `unless-stopped`
+
+`nginx-proxy` + `acme-companion` read the domain straight off `N8N_HOST` (derived
+from the URL you pass) and automatically request/renew a Let's Encrypt
+certificate for it — no nginx config files to hand-edit per domain. This
+requires:
+
+- DNS for that domain already pointing at this host's public IP
+- Ports `80` and `443` reachable from the internet (used for the ACME
+  HTTP-01 challenge and for serving HTTPS)
+
+`--email` sets the contact address Let's Encrypt uses for expiry/security
+notices. If omitted, it defaults to `admin@<host>` (a warning is printed).
 
 Alternative:
 
 ```bash
-WEBHOOK_URL=https://n8n.yourdomain.com pnpm docker:up
+WEBHOOK_URL=https://n8n.yourdomain.com LETSENCRYPT_EMAIL=you@example.com pnpm docker:up
 ```
 
 Force a rebuild:
 
 ```bash
-pnpm docker:up https://n8n.yourdomain.com --build
+pnpm docker:up https://n8n.yourdomain.com --email you@example.com --build
 ```
+
+**Note:** the build step itself can take 20–40+ minutes on first run and is a
+plain foreground process — if you're doing this over SSH, run it inside
+`tmux`/`screen`, or with `nohup pnpm docker:up ... > docker-up.log 2>&1 & disown`,
+so a dropped connection doesn't kill the build partway through.
 
 ## Default login (first boot only)
 
@@ -55,10 +72,11 @@ pnpm build:docker   # build image only, without starting
 
 ## Production notes
 
-- Put a reverse proxy (nginx, Caddy, Traefik, etc.) in front of port `5678` and terminate TLS there.
+- The reverse proxy (`nginx-proxy` + `acme-companion`) and TLS are already handled — no manual nginx config needed. Just make sure ports `80`/`443` are open and DNS resolves before you run `docker:up`.
 - Set `WEBHOOK_URL` to the **public HTTPS URL** users and integrations will call (e.g. `https://n8n.yourdomain.com`).
-- Back up the `n8n_data` Docker volume — it holds workflows, credentials, and the encryption key.
+- Back up the `n8n_data`, `certs`, and `acme` Docker volumes — `n8n_data` holds workflows/credentials/encryption key, `certs`/`acme` hold your issued Let's Encrypt certificate and account state (losing them just means re-issuing on next boot, not data loss).
 - Enterprise features are enabled via `N8N_LICENSE_UNLOCK_ALL=true` in the generated `docker/.env`.
+- Let's Encrypt enforces rate limits per domain (a handful of certificate issuances per week) — avoid tearing down and recreating the `acme` volume repeatedly for the same domain.
 
 ## Files
 

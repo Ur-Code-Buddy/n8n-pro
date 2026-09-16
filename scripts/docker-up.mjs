@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /**
- * Build (if needed) and run n8n in Docker detached mode.
+ * Build (if needed) and run n8n + nginx-proxy + acme-companion in Docker
+ * detached mode. TLS certificates are issued/renewed automatically for the
+ * host derived from the webhook URL.
  *
  * Usage:
- *   pnpm docker:up <webhook-url> [--build]
- *   WEBHOOK_URL=https://n8n.example.com pnpm docker:up
+ *   pnpm docker:up <webhook-url> [--build] [--email you@example.com]
+ *   WEBHOOK_URL=https://n8n.example.com LETSENCRYPT_EMAIL=you@example.com pnpm docker:up
  */
 
 import { $, echo, chalk, fs } from 'zx';
@@ -51,14 +53,22 @@ async function checkPrerequisites() {
 
 function parseArgs(argv) {
 	const forceBuild = argv.includes('--build');
-	const positional = argv.filter((arg) => !arg.startsWith('-'));
-	return { forceBuild, webhookUrl: positional[0] ?? process.env.WEBHOOK_URL };
+	const emailFlagIndex = argv.indexOf('--email');
+	const emailFromFlag = emailFlagIndex !== -1 ? argv[emailFlagIndex + 1] : undefined;
+	const emailValueIndex = emailFlagIndex !== -1 ? emailFlagIndex + 1 : -1;
+	const positional = argv.filter((arg, i) => !arg.startsWith('-') && i !== emailValueIndex);
+	return {
+		forceBuild,
+		webhookUrl: positional[0] ?? process.env.WEBHOOK_URL,
+		letsencryptEmail: emailFromFlag ?? process.env.LETSENCRYPT_EMAIL,
+	};
 }
 
 /**
  * @param {string} rawUrl
+ * @param {string | undefined} letsencryptEmail
  */
-function parseWebhookUrl(rawUrl) {
+function parseWebhookUrl(rawUrl, letsencryptEmail) {
 	let parsed;
 	try {
 		parsed = new URL(rawUrl);
@@ -77,12 +87,22 @@ function parseWebhookUrl(rawUrl) {
 	const editorBaseUrl = origin.replace(/\/$/, '');
 	const isHttps = parsed.protocol === 'https:';
 
+	const resolvedEmail = letsencryptEmail ?? `admin@${parsed.hostname}`;
+	if (!letsencryptEmail) {
+		echo(
+			chalk.yellow(
+				`WARN: no --email given for Let's Encrypt notices — defaulting to ${resolvedEmail}. Pass --email you@example.com to override.`,
+			),
+		);
+	}
+
 	/** @type {Record<string, string>} */
 	const env = {
 		WEBHOOK_URL: webhookUrl,
 		N8N_EDITOR_BASE_URL: editorBaseUrl,
 		N8N_PROTOCOL: parsed.protocol.replace(':', ''),
 		N8N_HOST: parsed.hostname,
+		LETSENCRYPT_EMAIL: resolvedEmail,
 		...FORK_DEFAULTS,
 	};
 
@@ -143,6 +163,11 @@ function printSummary({ editorBaseUrl, webhookUrl }) {
 	echo(`  Webhooks:   ${webhookUrl}`);
 	echo(`  Local port: http://localhost:5678`);
 	echo('');
+	echo(
+		'  TLS:        nginx-proxy + acme-companion will request a Let\'s Encrypt cert on first',
+	);
+	echo('              boot once DNS resolves to this host (ports 80/443 must be reachable).');
+	echo('');
 	echo(`  Login:      ${FORK_DEFAULTS.N8N_DEFAULT_OWNER_EMAIL}`);
 	echo(`  Password:   ${FORK_DEFAULTS.N8N_DEFAULT_OWNER_PASSWORD}`);
 	echo('');
@@ -156,23 +181,27 @@ function printSummary({ editorBaseUrl, webhookUrl }) {
 }
 
 async function main() {
-	const { forceBuild, webhookUrl: rawWebhookUrl } = parseArgs(process.argv.slice(2));
+	const {
+		forceBuild,
+		webhookUrl: rawWebhookUrl,
+		letsencryptEmail,
+	} = parseArgs(process.argv.slice(2));
 
 	if (!rawWebhookUrl) {
 		echo(chalk.red('Error: webhook URL is required'));
 		echo('');
 		echo('Usage:');
-		echo('  pnpm docker:up <webhook-url> [--build]');
+		echo('  pnpm docker:up <webhook-url> [--build] [--email you@example.com]');
 		echo('  WEBHOOK_URL=https://n8n.example.com pnpm docker:up');
 		echo('');
 		echo('Example:');
-		echo('  pnpm docker:up https://n8n.yourdomain.com');
+		echo('  pnpm docker:up https://n8n.yourdomain.com --email you@example.com');
 		process.exit(1);
 	}
 
 	await checkPrerequisites();
 
-	const { webhookUrl, editorBaseUrl, env } = parseWebhookUrl(rawWebhookUrl);
+	const { webhookUrl, editorBaseUrl, env } = parseWebhookUrl(rawWebhookUrl, letsencryptEmail);
 	await writeEnvFile(env);
 
 	const hasImage = await imageExists();
