@@ -12,6 +12,11 @@ import {
 	getSubtreeTotalConsumedTokens,
 	hasSubExecution,
 } from '@/features/execution/logs/logs.utils';
+import {
+	getSubtreeTotalEstimatedCost,
+	priceEntriesToMap,
+} from '@/features/execution/logs/logsCostEstimate.utils';
+import { useAiModelPricingStore } from '@/features/ai/modelPricing/aiModelPricing.store';
 import { useTimestamp } from '@vueuse/core';
 import type { LatestNodeInfo, LogEntry } from '@/features/execution/logs/logs.types';
 
@@ -39,6 +44,8 @@ const container = useTemplateRef('containerRef');
 const locale = useI18n();
 const now = useTimestamp({ interval: 1000 });
 const nodeTypeStore = useNodeTypesStore();
+const pricingStore = useAiModelPricingStore();
+const priceByModel = computed(() => priceEntriesToMap(pricingStore.entries));
 const type = computed(() => nodeTypeStore.getNodeType(props.data.node.type));
 const isRunning = computed(() => props.data.runData?.executionStatus === 'running');
 const isWaiting = computed(() => props.data.runData?.executionStatus === 'waiting');
@@ -74,6 +81,12 @@ const timeText = computed(() =>
 
 const subtreeConsumedTokens = computed(() =>
 	props.shouldShowTokenCountColumn ? getSubtreeTotalConsumedTokens(props.data, false) : undefined,
+);
+
+const subtreeEstimatedCost = computed(() =>
+	props.shouldShowTokenCountColumn
+		? getSubtreeTotalEstimatedCost(props.data, false, priceByModel.value)
+		: undefined,
 );
 
 const hasChildren = computed(() => props.data.children.length > 0 || hasSubExecution(props.data));
@@ -183,6 +196,7 @@ watch(
 					(props.data.children.length === 0 || !props.expanded)
 				"
 				:consumed-tokens="subtreeConsumedTokens"
+				:estimated-cost="subtreeEstimatedCost"
 			/>
 		</N8nText>
 		<N8nIcon

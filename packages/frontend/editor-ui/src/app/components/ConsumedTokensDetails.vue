@@ -2,8 +2,15 @@
 import { useI18n } from '@n8n/i18n';
 import { type LlmTokenUsageData } from '@/Interface';
 import { formatTokenUsageCount } from '@/app/utils/aiUtils';
-import { N8nText } from '@n8n/design-system';
-const { consumedTokens } = defineProps<{ consumedTokens: LlmTokenUsageData }>();
+import {
+	formatEstimatedCostAmount,
+	type EstimatedCost,
+} from '@/features/execution/logs/logsCostEstimate.utils';
+import { N8nText, N8nTooltip, N8nIcon } from '@n8n/design-system';
+const { consumedTokens, estimatedCost } = defineProps<{
+	consumedTokens: LlmTokenUsageData;
+	estimatedCost?: EstimatedCost;
+}>();
 const i18n = useI18n();
 </script>
 
@@ -30,5 +37,22 @@ const i18n = useI18n();
 				})
 			}}
 		</N8nText>
+		<template v-if="estimatedCost !== undefined">
+			<br />
+			<N8nText :bold="true" size="small" data-test-id="consumed-tokens-estimated-cost">
+				{{ i18n.baseText('runData.aiContentBlock.cost.label') }}
+				{{
+					i18n.baseText('runData.aiContentBlock.cost.value', {
+						interpolate: { amount: formatEstimatedCostAmount(estimatedCost.total) },
+					})
+				}}
+				<N8nTooltip v-if="estimatedCost.isPartial" :enterable="false">
+					<N8nIcon icon="circle-alert" size="small" data-test-id="consumed-tokens-cost-partial" />
+					<template #content>
+						{{ i18n.baseText('runData.aiContentBlock.cost.partialTooltip') }}
+					</template>
+				</N8nTooltip>
+			</N8nText>
+		</template>
 	</div>
 </template>

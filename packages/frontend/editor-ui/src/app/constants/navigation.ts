@@ -68,6 +68,7 @@ export const enum VIEWS {
 	PRE_BUILT_AGENT_TEMPLATES = 'PreBuiltAgentTemplates',
 	AI_SETTINGS = 'AISettingsView',
 	AI_GATEWAY_SETTINGS = 'AIGatewaySettingsView',
+	AI_MODEL_PRICING_SETTINGS = 'AIModelPricingSettingsView',
 	OAUTH_CONSENT = 'OAuthConsent',
 	MIGRATION_REPORT = 'MigrationReport',
 	MIGRATION_RULE_REPORT = 'MigrationRuleReport',
