@@ -3200,9 +3200,6 @@ importers:
       '@n8n_io/ai-assistant-sdk':
         specifier: 'catalog:'
         version: 1.21.1
-      '@n8n_io/license-sdk':
-        specifier: 2.25.0
-        version: 2.25.0
       '@opentelemetry/api':
         specifier: 1.9.0
         version: 1.9.0
@@ -8550,10 +8547,6 @@ packages:
   '@n8n_io/ai-assistant-sdk@1.21.1':
     resolution: {integrity: sha512-Bb18Cv6VeX3eqPF1DLN48ZqjTzUoWuskO0opVOwCrDESZUAQWWhG54enKsggXzhAdYh8XnqmO7RphN4t8ZwxHQ==}
     engines: {node: '>=20.15', pnpm: '>=8.14'}
-
-  '@n8n_io/license-sdk@2.25.0':
-    resolution: {integrity: sha512-6pNo09XHhBb+igaHfpuvLez+IxcerzRWMFUH1eqAOOE0Uf5orQp8j5p5RE7ohNZYtxlMoL/PcsQIXK5uHBycwg==}
-    engines: {node: '>=18.12.1'}
 
   '@napi-rs/canvas-android-arm64@0.1.80':
     resolution: {integrity: sha512-sk7xhN/MoXeuExlggf91pNziBxLPVUqF2CAVnB57KLG/pz7+U5TKG8eXdc3pm0d7Od0WreB6ZKLj37sX9muGOQ==}
@@ -17449,9 +17442,6 @@ packages:
   node-int64@0.4.0:
     resolution: {integrity: sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw==}
 
-  node-machine-id@1.1.12:
-    resolution: {integrity: sha512-QNABxbrPa3qEIfrE6GOJ7BYIuignnJw7iQ2YPbc3Nla1HzRJjXzZOiikfF8m7eAMfichLt3M4VgLOetqgDmgGQ==}
-
   node-readfiles@0.2.0:
     resolution: {integrity: sha512-SU00ZarexNlE4Rjdm83vglt5Y9yiQ+XI1XpflWlb7q7UTN1JUItm69xMeiQCTxtTfnzt+83T8Cx+vI2ED++VDA==}
 
@@ -20861,8 +20851,8 @@ packages:
   vue-component-type-helpers@2.2.12:
     resolution: {integrity: sha512-YbGqHZ5/eW4SnkPNR44mKVc6ZKQoRs/Rux1sxC6rdwXb4qpbOSYfDr9DsTHolOTGmIKgM9j141mZbBeg05R1pw==}
 
-  vue-component-type-helpers@3.3.4:
-    resolution: {integrity: sha512-joip1uZTaQR0nD23N400gIdJ7xY+WiiiMA/BCKz842gvGBknqDQAzklUvDEhqFvvrhQY8S2ZANBMu4X70VMFGw==}
+  vue-component-type-helpers@3.3.11:
+    resolution: {integrity: sha512-LwcxzeliO9fkQcpJG0PoX8X5kmAhKmH9wkpDLxNabwzkQ9Zeib2YVHwFV4pcWmMLfXVfjr/dSV+DaJ3cIPgSNA==}
 
   vue-demi@0.14.10:
     resolution: {integrity: sha512-nMZBOwuzabUO0nLgIcc6rycZEebF6eeUfaiQx9+WSk8e29IbLvPU9feI6tqW4kTo3hvoYAJkMh8n8D0fuISphg==}
@@ -26037,13 +26027,6 @@ snapshots:
 
   '@n8n_io/ai-assistant-sdk@1.21.1': {}
 
-  '@n8n_io/license-sdk@2.25.0':
-    dependencies:
-      crypto-js: 4.2.0
-      node-machine-id: 1.1.12
-      node-rsa: 1.1.1
-      undici: 7.27.2
-
   '@napi-rs/canvas-android-arm64@0.1.80':
     optional: true
 
@@ -28040,7 +28023,7 @@ snapshots:
       storybook: 10.1.11(@testing-library/dom@10.4.0)(bufferutil@4.0.9)(prettier@3.6.2)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(utf-8-validate@5.0.10)
       type-fest: 2.19.0
       vue: 3.5.26(typescript@6.0.2)
-      vue-component-type-helpers: 3.3.4
+      vue-component-type-helpers: 3.3.11
 
   '@stryker-mutator/api@9.6.1':
     dependencies:
@@ -31474,7 +31457,8 @@ snapshots:
       randombytes: 2.1.0
       randomfill: 1.0.4
 
-  crypto-js@4.2.0: {}
+  crypto-js@4.2.0:
+    optional: true
 
   csrf@3.1.0:
     dependencies:
@@ -36818,8 +36802,6 @@ snapshots:
 
   node-int64@0.4.0: {}
 
-  node-machine-id@1.1.12: {}
-
   node-readfiles@0.2.0:
     dependencies:
       es6-promise: 3.3.1
@@ -40854,7 +40836,7 @@ snapshots:
 
   vue-component-type-helpers@2.2.12: {}
 
-  vue-component-type-helpers@3.3.4: {}
+  vue-component-type-helpers@3.3.11: {}
 
   vue-demi@0.14.10(vue@3.5.26(typescript@6.0.2)):
     dependencies:
