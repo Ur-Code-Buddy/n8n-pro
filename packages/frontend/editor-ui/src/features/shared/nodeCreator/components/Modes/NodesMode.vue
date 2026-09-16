@@ -15,13 +15,20 @@ import {
 	REGULAR_NODE_CREATOR_VIEW,
 	AI_NODE_CREATOR_VIEW,
 	AI_OTHERS_NODE_CREATOR_VIEW,
+	AI_KNOWLEDGE_NODE_CREATOR_VIEW,
 	HITL_SUBCATEGORY,
 } from '@/app/constants';
 
 import type { BaseTextKey } from '@n8n/i18n';
 import { useNodeCreatorStore } from '@/features/shared/nodeCreator/nodeCreator.store';
 
-import { TriggerView, RegularView, AIView, AINodesView } from '../../views/viewsData';
+import {
+	TriggerView,
+	RegularView,
+	AIView,
+	AINodesView,
+	AIKnowledgeNodesView,
+} from '../../views/viewsData';
 import {
 	flattenCreateElements,
 	filterAndSearchNodes,
@@ -212,6 +219,7 @@ function onSelected(item: INodeCreateElement) {
 			[REGULAR_NODE_CREATOR_VIEW]: RegularView,
 			[AI_NODE_CREATOR_VIEW]: AIView,
 			[AI_OTHERS_NODE_CREATOR_VIEW]: AINodesView,
+			[AI_KNOWLEDGE_NODE_CREATOR_VIEW]: AIKnowledgeNodesView,
 		};
 
 		const itemKey = item.key as keyof typeof views;

@@ -18,9 +18,9 @@ const BrowserUseSetupModal = async () =>
 
 export const InstanceAiModule: FrontendModuleDescription = {
 	id: 'instance-ai',
-	name: 'AI Assistant',
+	name: 'Operator',
 	description: 'Chat with your n8n instance.',
-	icon: 'sparkles',
+	icon: 'terminal',
 	routes: [
 		{
 			path: '/instance-ai',
@@ -73,7 +73,7 @@ export const InstanceAiModule: FrontendModuleDescription = {
 	settingsPages: [
 		{
 			id: 'settings-instance-ai',
-			icon: 'sparkles',
+			icon: 'terminal',
 			label: i18n.baseText('settings.n8nAgent'),
 			position: 'top',
 			route: { to: { name: INSTANCE_AI_SETTINGS_VIEW } },

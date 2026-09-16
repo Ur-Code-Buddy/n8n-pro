@@ -172,7 +172,7 @@ describe('NDVSubConnections', () => {
 			return null;
 		});
 
-		const { getByTestId } = render(NDVSubConnections, {
+		const { getByTestId, getAllByText } = render(NDVSubConnections, {
 			props: {
 				rootNode: multiConnectionNode,
 			},
@@ -188,5 +188,8 @@ describe('NDVSubConnections', () => {
 		expect(getByTestId('add-subnode-ai_languageModel-0')).toBeVisible();
 		expect(getByTestId('add-subnode-ai_languageModel-1')).toBeVisible();
 		expect(getByTestId('add-subnode-ai_languageModel-2')).toBeVisible();
+
+		// All three Model connections are required -- each should show a "Required" badge
+		expect(getAllByText('Required')).toHaveLength(3);
 	});
 });

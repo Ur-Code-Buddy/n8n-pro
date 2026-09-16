@@ -12,6 +12,7 @@ import {
 	AI_CATEGORY_TOOLS,
 	AI_CATEGORY_VECTOR_STORES,
 	AI_CODE_TOOL_LANGCHAIN_NODE_TYPE,
+	AI_KNOWLEDGE_NODE_CREATOR_VIEW,
 	AI_NODE_CREATOR_VIEW,
 	AI_OTHERS_NODE_CREATOR_VIEW,
 	AI_SUBCATEGORY,
@@ -247,29 +248,97 @@ export function AIView(_nodes: SimplifiedNodeType[]): NodeView {
 	};
 }
 
-export function AINodesView(_nodes: SimplifiedNodeType[]): NodeView {
+function getAISubcategoryProperties(nodeConnectionType: NodeConnectionType) {
+	return {
+		connectionType: nodeConnectionType,
+		iconProps: {
+			color: `var(--node-type-${nodeConnectionType}-color)`,
+		},
+		panelClass: `nodes-list-panel-${nodeConnectionType}`,
+	};
+}
+
+function getSubcategoryInfo(subcategory: string) {
+	const i18n = useI18n();
+	const localeKey = `nodeCreator.subcategoryInfos.${camelCase(subcategory)}` as BaseTextKey;
+
+	const info = i18n.baseText(localeKey);
+
+	// Return undefined if the locale key is not found
+	if (info === localeKey) return undefined;
+
+	return info;
+}
+
+/**
+ * The Document Loader / Embeddings / Vector Store / Retriever subcategories
+ * together form n8n's RAG ("knowledge base") stack -- grouped under one
+ * "Knowledge" view (AIKnowledgeNodesView below) so a user assembling a
+ * knowledge base doesn't need to already know these four are related.
+ * Exported (not just used locally) because `gotoCompatibleConnectionView` in
+ * useViewStacks.ts also needs to look these up by connectionType when a user
+ * clicks "+" on one of these typed sockets directly on the canvas/NDV --
+ * that flow bypasses browsing through AIKnowledgeNodesView entirely, so its
+ * lookup must be able to find these regardless of which view they render in.
+ */
+export function getKnowledgeSubcategoryItems(): NodeViewItem[] {
+	return [
+		{
+			key: AI_CATEGORY_DOCUMENT_LOADERS,
+			type: 'subcategory',
+			properties: {
+				title: AI_CATEGORY_DOCUMENT_LOADERS,
+				info: getSubcategoryInfo(AI_CATEGORY_DOCUMENT_LOADERS),
+				icon: 'file-input',
+				...getAISubcategoryProperties(NodeConnectionTypes.AiDocument),
+			},
+		},
+		{
+			key: AI_CATEGORY_EMBEDDING,
+			type: 'subcategory',
+			properties: {
+				title: AI_CATEGORY_EMBEDDING,
+				info: getSubcategoryInfo(AI_CATEGORY_EMBEDDING),
+				icon: 'vector-square',
+				...getAISubcategoryProperties(NodeConnectionTypes.AiEmbedding),
+			},
+		},
+		{
+			key: AI_CATEGORY_VECTOR_STORES,
+			type: 'subcategory',
+			properties: {
+				title: AI_CATEGORY_VECTOR_STORES,
+				info: getSubcategoryInfo(AI_CATEGORY_VECTOR_STORES),
+				icon: 'waypoints',
+				...getAISubcategoryProperties(NodeConnectionTypes.AiVectorStore),
+			},
+		},
+		{
+			key: AI_CATEGORY_RETRIEVERS,
+			type: 'subcategory',
+			properties: {
+				title: AI_CATEGORY_RETRIEVERS,
+				info: getSubcategoryInfo(AI_CATEGORY_RETRIEVERS),
+				icon: 'search',
+				...getAISubcategoryProperties(NodeConnectionTypes.AiRetriever),
+			},
+		},
+	];
+}
+
+export function AIKnowledgeNodesView(_nodes: SimplifiedNodeType[]): NodeView {
 	const i18n = useI18n();
 
-	function getAISubcategoryProperties(nodeConnectionType: NodeConnectionType) {
-		return {
-			connectionType: nodeConnectionType,
-			iconProps: {
-				color: `var(--node-type-${nodeConnectionType}-color)`,
-			},
-			panelClass: `nodes-list-panel-${nodeConnectionType}`,
-		};
-	}
+	return {
+		value: AI_KNOWLEDGE_NODE_CREATOR_VIEW,
+		title: i18n.baseText('nodeCreator.aiPanel.aiKnowledgeNodes'),
+		subtitle: i18n.baseText('nodeCreator.aiPanel.selectAiNode'),
+		items: getKnowledgeSubcategoryItems(),
+	};
+}
 
-	function getSubcategoryInfo(subcategory: string) {
-		const localeKey = `nodeCreator.subcategoryInfos.${camelCase(subcategory)}` as BaseTextKey;
-
-		const info = i18n.baseText(localeKey);
-
-		// Return undefined if the locale key is not found
-		if (info === localeKey) return undefined;
-
-		return info;
-	}
+export function AINodesView(_nodes: SimplifiedNodeType[]): NodeView {
+	const i18n = useI18n();
 
 	return {
 		value: AI_OTHERS_NODE_CREATOR_VIEW,
@@ -277,13 +346,12 @@ export function AINodesView(_nodes: SimplifiedNodeType[]): NodeView {
 		subtitle: i18n.baseText('nodeCreator.aiPanel.selectAiNode'),
 		items: [
 			{
-				key: AI_CATEGORY_DOCUMENT_LOADERS,
-				type: 'subcategory',
+				key: AI_KNOWLEDGE_NODE_CREATOR_VIEW,
+				type: 'view',
 				properties: {
-					title: AI_CATEGORY_DOCUMENT_LOADERS,
-					info: getSubcategoryInfo(AI_CATEGORY_DOCUMENT_LOADERS),
-					icon: 'file-input',
-					...getAISubcategoryProperties(NodeConnectionTypes.AiDocument),
+					title: i18n.baseText('nodeCreator.aiPanel.aiKnowledgeNodes'),
+					icon: 'vector-square',
+					description: i18n.baseText('nodeCreator.aiPanel.aiKnowledgeNodesDescription'),
 				},
 			},
 			{
@@ -317,16 +385,6 @@ export function AINodesView(_nodes: SimplifiedNodeType[]): NodeView {
 				},
 			},
 			{
-				key: AI_CATEGORY_RETRIEVERS,
-				type: 'subcategory',
-				properties: {
-					title: AI_CATEGORY_RETRIEVERS,
-					info: getSubcategoryInfo(AI_CATEGORY_RETRIEVERS),
-					icon: 'search',
-					...getAISubcategoryProperties(NodeConnectionTypes.AiRetriever),
-				},
-			},
-			{
 				key: AI_CATEGORY_TEXT_SPLITTERS,
 				type: 'subcategory',
 				properties: {
@@ -352,26 +410,6 @@ export function AINodesView(_nodes: SimplifiedNodeType[]): NodeView {
 							items: [AI_WORKFLOW_TOOL_LANGCHAIN_NODE_TYPE, AI_CODE_TOOL_LANGCHAIN_NODE_TYPE],
 						},
 					],
-				},
-			},
-			{
-				key: AI_CATEGORY_EMBEDDING,
-				type: 'subcategory',
-				properties: {
-					title: AI_CATEGORY_EMBEDDING,
-					info: getSubcategoryInfo(AI_CATEGORY_EMBEDDING),
-					icon: 'vector-square',
-					...getAISubcategoryProperties(NodeConnectionTypes.AiEmbedding),
-				},
-			},
-			{
-				key: AI_CATEGORY_VECTOR_STORES,
-				type: 'subcategory',
-				properties: {
-					title: AI_CATEGORY_VECTOR_STORES,
-					info: getSubcategoryInfo(AI_CATEGORY_VECTOR_STORES),
-					icon: 'waypoints',
-					...getAISubcategoryProperties(NodeConnectionTypes.AiVectorStore),
 				},
 			},
 			{

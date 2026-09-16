@@ -1,20 +1,37 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`NDVSubConnections > should render container if possible connections 1`] = `
-"<div class="container">
-  <div class="connections" style="--possible-connections: 1;">
-    <div data-test-id="subnode-connection-group-ai_tool-0">
-      <div class="connectionType"><span class="connectionLabel">Tools</span>
-        <div>
-          <div class="connectedNodesWrapper" style="--nodes-length: 0;">
-            <div class="plusButton"><span class="" data-state="closed" data-grace-area-trigger=""><n8n-button-stub icon="plus" variant="subtle" size="medium" loading="false" icononly="true" disabled="false" class="" data-test-id="add-subnode-ai_tool-0"></n8n-button-stub></span>
-              <!--teleport start-->
-              <!--teleport end-->
+"<div>
+  <div>
+    <div class="container">
+      <div class="connections" style="--possible-connections: 1;">
+        <div data-test-id="subnode-connection-group-ai_tool-0">
+          <div class="connectionType">
+            <div class="connectionLabelRow"><span class="connectionLabel">Tools</span>
+              <!--v-if-->
             </div>
-            <!--v-if-->
+            <div>
+              <div class="connectedNodesWrapper" style="--nodes-length: 0;">
+                <div class="plusButton"><span class="" data-state="closed" data-grace-area-trigger=""><n8n-button-stub icon="plus" variant="subtle" size="medium" loading="false" icononly="true" disabled="false" class="" data-test-id="add-subnode-ai_tool-0"></n8n-button-stub></span>
+                  <!--teleport start-->
+                  <!--teleport end-->
+                </div>
+                <!--v-if-->
+              </div>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+  <div>
+    <div role="dialog" collision-padding="5" force-mount="false">
+      <div class="ai-sub-connections-coachmark__header"><span class="ai-sub-connections-coachmark__title">Attach tools, memory &amp; models here</span></div>
+      <p class="ai-sub-connections-coachmark__body">These sockets connect capabilities like a Model or Memory to this node -- separate from the main data flow. Click a + below to add one.</p>
+      <div class="ai-sub-connections-coachmark__footer">
+        <n8n-button-stub label="Got it" variant="solid" size="small" loading="false" icononly="false" disabled="false" class="ai-sub-connections-coachmark__button" data-test-id="ai-sub-connections-coachmark-dismiss"></n8n-button-stub>
+      </div>
+      <div class="popoverArrow"></div>
     </div>
   </div>
 </div>"

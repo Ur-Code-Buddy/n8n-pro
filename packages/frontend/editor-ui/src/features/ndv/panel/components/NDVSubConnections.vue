@@ -17,7 +17,9 @@ import { OnClickOutside } from '@vueuse/components';
 import { useI18n } from '@n8n/i18n';
 import { injectNDVStore } from '@/features/ndv/shared/ndv.store';
 
-import { N8nIconButton, N8nTooltip } from '@n8n/design-system';
+import { N8nBadge, N8nIconButton, N8nTooltip } from '@n8n/design-system';
+import AiSubConnectionsCoachmark from './AiSubConnectionsCoachmark.vue';
+import { useAiSubConnectionsCoachmark } from '../composables/useAiSubConnectionsCoachmark';
 interface Props {
 	rootNode: INodeUi;
 }
@@ -28,6 +30,7 @@ const nodeTypesStore = useNodeTypesStore();
 const nodeHelpers = useNodeHelpers();
 const i18n = useI18n();
 const { debounce } = useDebounce();
+const { shouldShowCoachmark, onDismissCoachmark } = useAiSubConnectionsCoachmark();
 const emit = defineEmits<{
 	switchSelectedNode: [nodeName: string];
 	openConnectionNodeCreator: [
@@ -274,130 +277,150 @@ defineExpose({
 </script>
 
 <template>
-	<div v-if="possibleConnections.length" :class="$style.container">
-		<div
-			:class="$style.connections"
-			:style="`--possible-connections: ${possibleConnections.length}`"
-		>
+	<AiSubConnectionsCoachmark
+		v-if="possibleConnections.length"
+		:visible="shouldShowCoachmark"
+		@dismiss="onDismissCoachmark"
+	>
+		<div :class="$style.container">
 			<div
-				v-for="(connection, index) in possibleConnections"
-				:key="getConnectionKey(connection, index)"
-				:data-test-id="`subnode-connection-group-${getConnectionKey(connection, index)}`"
+				:class="$style.connections"
+				:style="`--possible-connections: ${possibleConnections.length}`"
 			>
-				<div :class="$style.connectionType">
-					<span
-						:class="{
-							[$style.connectionLabel]: true,
-							[$style.hasIssues]: hasInputIssues(getConnectionContext(connection, index)),
-						}"
-						v-text="`${connection.displayName}${connection.required ? ' *' : ''}`"
-					/>
-					<OnClickOutside
-						@trigger="expandConnectionGroup(getConnectionContext(connection, index), false)"
-					>
-						<div
-							ref="connectedNodesWrapper"
-							:class="{
-								[$style.connectedNodesWrapper]: true,
-								[$style.connectedNodesWrapperExpanded]: expandedGroups.includes(connection.type),
-							}"
-							:style="`--nodes-length: ${connectedNodes[getConnectionKey(connection, index)].length}`"
-							@click="expandConnectionGroup(getConnectionContext(connection, index), true)"
-						>
-							<div
-								v-if="
-									connectedNodes[getConnectionKey(connection, index)].length >= 1
-										? connection.maxConnections !== 1
-										: true
-								"
+				<div
+					v-for="(connection, index) in possibleConnections"
+					:key="getConnectionKey(connection, index)"
+					:data-test-id="`subnode-connection-group-${getConnectionKey(connection, index)}`"
+				>
+					<div :class="$style.connectionType">
+						<div :class="$style.connectionLabelRow">
+							<span
 								:class="{
-									[$style.plusButton]: true,
+									[$style.connectionLabel]: true,
 									[$style.hasIssues]: hasInputIssues(getConnectionContext(connection, index)),
 								}"
-								@click="onPlusClick(getConnectionContext(connection, index))"
+								v-text="connection.displayName"
+							/>
+							<N8nBadge
+								v-if="connection.required"
+								theme="danger"
+								size="xsmall"
+								:show-border="false"
 							>
-								<N8nTooltip
-									placement="top"
-									:teleported="true"
-									:offset="10"
-									:show-after="300"
-									:disabled="
-										shouldShowConnectionTooltip(getConnectionContext(connection, index)) &&
-										connectedNodes[getConnectionKey(connection, index)].length >= 1
-									"
-								>
-									<template #content>
-										Add {{ connection.displayName }}
-										<template v-if="hasInputIssues(getConnectionContext(connection, index))">
-											<TitledList
-												:title="`${i18n.baseText('node.issues')}:`"
-												:items="nodeInputIssues[connection.type]"
-											/>
-										</template>
-									</template>
-									<N8nIconButton
-										variant="subtle"
-										size="medium"
-										icon="plus"
-										:data-test-id="`add-subnode-${getConnectionKey(connection, index)}`"
-									/>
-								</N8nTooltip>
-							</div>
+								{{ i18n.baseText('generic.required') }}
+							</N8nBadge>
+						</div>
+						<OnClickOutside
+							@trigger="expandConnectionGroup(getConnectionContext(connection, index), false)"
+						>
 							<div
-								v-if="connectedNodes[getConnectionKey(connection, index)].length > 0"
+								ref="connectedNodesWrapper"
 								:class="{
-									[$style.connectedNodes]: true,
-									[$style.connectedNodesMultiple]:
-										connectedNodes[getConnectionKey(connection, index)].length > 1,
+									[$style.connectedNodesWrapper]: true,
+									[$style.connectedNodesWrapperExpanded]: expandedGroups.includes(connection.type),
 								}"
+								:style="`--nodes-length: ${connectedNodes[getConnectionKey(connection, index)].length}`"
+								@click="expandConnectionGroup(getConnectionContext(connection, index), true)"
 							>
 								<div
-									v-for="(node, nodeIndex) in connectedNodes[getConnectionKey(connection, index)]"
-									:key="node.node.name"
-									:class="{ [$style.nodeWrapper]: true, [$style.hasIssues]: node.issues }"
-									data-test-id="floating-subnode"
-									:data-node-name="node.node.name"
-									:style="`--node-index: ${nodeIndex}`"
+									v-if="
+										connectedNodes[getConnectionKey(connection, index)].length >= 1
+											? connection.maxConnections !== 1
+											: true
+									"
+									:class="{
+										[$style.plusButton]: true,
+										[$style.hasIssues]: hasInputIssues(getConnectionContext(connection, index)),
+									}"
+									@click="onPlusClick(getConnectionContext(connection, index))"
 								>
 									<N8nTooltip
-										:key="node.node.name"
 										placement="top"
 										:teleported="true"
 										:offset="10"
 										:show-after="300"
-										:disabled="shouldShowConnectionTooltip(getConnectionContext(connection, index))"
+										:disabled="
+											shouldShowConnectionTooltip(getConnectionContext(connection, index)) &&
+											connectedNodes[getConnectionKey(connection, index)].length >= 1
+										"
 									>
 										<template #content>
-											{{ node.node.name }}
-											<template v-if="node.issues">
+											Add {{ connection.displayName }}
+											<template v-if="hasInputIssues(getConnectionContext(connection, index))">
 												<TitledList
 													:title="`${i18n.baseText('node.issues')}:`"
-													:items="node.issues"
+													:items="nodeInputIssues[connection.type]"
 												/>
 											</template>
 										</template>
-
-										<div
-											:class="$style.connectedNode"
-											@click="onNodeClick(node.node.name, getConnectionContext(connection, index))"
-										>
-											<NodeIcon
-												:node-type="node.nodeType"
-												:node-name="node.node.name"
-												tooltip-position="top"
-												:size="20"
-												circle
-											/>
-										</div>
+										<N8nIconButton
+											variant="subtle"
+											size="medium"
+											icon="plus"
+											:data-test-id="`add-subnode-${getConnectionKey(connection, index)}`"
+										/>
 									</N8nTooltip>
 								</div>
+								<div
+									v-if="connectedNodes[getConnectionKey(connection, index)].length > 0"
+									:class="{
+										[$style.connectedNodes]: true,
+										[$style.connectedNodesMultiple]:
+											connectedNodes[getConnectionKey(connection, index)].length > 1,
+									}"
+								>
+									<div
+										v-for="(node, nodeIndex) in connectedNodes[getConnectionKey(connection, index)]"
+										:key="node.node.name"
+										:class="{ [$style.nodeWrapper]: true, [$style.hasIssues]: node.issues }"
+										data-test-id="floating-subnode"
+										:data-node-name="node.node.name"
+										:style="`--node-index: ${nodeIndex}`"
+									>
+										<N8nTooltip
+											:key="node.node.name"
+											placement="top"
+											:teleported="true"
+											:offset="10"
+											:show-after="300"
+											:disabled="
+												shouldShowConnectionTooltip(getConnectionContext(connection, index))
+											"
+										>
+											<template #content>
+												{{ node.node.name }}
+												<template v-if="node.issues">
+													<TitledList
+														:title="`${i18n.baseText('node.issues')}:`"
+														:items="node.issues"
+													/>
+												</template>
+											</template>
+
+											<div
+												:class="$style.connectedNode"
+												@click="
+													onNodeClick(node.node.name, getConnectionContext(connection, index))
+												"
+											>
+												<NodeIcon
+													:node-type="node.nodeType"
+													:node-name="node.node.name"
+													tooltip-position="top"
+													:size="20"
+													circle
+												/>
+											</div>
+										</N8nTooltip>
+									</div>
+								</div>
 							</div>
-						</div>
-					</OnClickOutside>
+						</OnClickOutside>
+					</div>
 				</div>
 			</div>
 		</div>
-	</div>
+	</AiSubConnectionsCoachmark>
 </template>
 
 <style lang="scss" module>
@@ -445,8 +468,14 @@ defineExpose({
 	align-items: center;
 	transition: all calc((var(--ndv--sub-connections--duration) - 50ms)) ease;
 }
-.connectionLabel {
+.connectionLabelRow {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing--4xs);
 	margin-bottom: var(--spacing--2xs);
+}
+
+.connectionLabel {
 	font-size: var(--font-size--2xs);
 	user-select: none;
 	text-wrap: nowrap;

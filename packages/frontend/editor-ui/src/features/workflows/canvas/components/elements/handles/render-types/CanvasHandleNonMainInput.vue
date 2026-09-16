@@ -5,6 +5,9 @@ import { computed, ref, useCssModule } from 'vue';
 import CanvasHandleDiamond from './parts/CanvasHandleDiamond.vue';
 import { useCanvas } from '../../../../composables/useCanvas';
 import { useZoomAdjustedValues } from '../../../../composables/useZoomAdjustedValues';
+import { useI18n } from '@n8n/i18n';
+
+const i18n = useI18n();
 
 const emit = defineEmits<{
 	add: [];
@@ -21,7 +24,6 @@ const handleClasses = 'target';
 const classes = computed(() => ({
 	'canvas-node-handle-non-main-input': true,
 	[$style.handle]: true,
-	[$style.required]: isRequired.value,
 }));
 
 const isHandlePlusAvailable = computed(
@@ -55,7 +57,12 @@ function onClickAdd() {
 </script>
 <template>
 	<div :class="classes">
-		<div :class="[$style.label]">{{ label }}</div>
+		<div :class="[$style.label]">
+			{{ label }}
+			<span v-if="isRequired" :class="$style.requiredLabel">{{
+				i18n.baseText('generic.required')
+			}}</span>
+		</div>
 		<CanvasHandleDiamond :handle-classes="handleClasses" :style="handleStyles" />
 		<Transition name="canvas-node-handle-non-main-input">
 			<CanvasHandlePlus
@@ -94,9 +101,12 @@ function onClickAdd() {
 	white-space: nowrap;
 }
 
-.required .label::after {
-	content: '*';
+.requiredLabel {
+	margin-left: var(--spacing--4xs);
 	color: var(--color--danger);
+	font-weight: var(--font-weight--bold);
+	text-transform: uppercase;
+	font-size: var(--font-size--3xs);
 }
 </style>
 

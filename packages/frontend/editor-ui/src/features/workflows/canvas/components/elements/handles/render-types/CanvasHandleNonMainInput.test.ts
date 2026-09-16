@@ -22,4 +22,30 @@ describe('CanvasHandleNonMainInput', () => {
 		expect(container.querySelector('.canvas-node-handle-non-main-input')).toBeInTheDocument();
 		expect(getByText(label)).toBeInTheDocument();
 	});
+
+	it('should show a "Required" label when the connection is required', () => {
+		const { getByText } = renderComponent({
+			global: {
+				provide: {
+					...createCanvasProvide(),
+					...createCanvasHandleProvide({ label: 'Model', isRequired: true }),
+				},
+			},
+		});
+
+		expect(getByText('Required')).toBeInTheDocument();
+	});
+
+	it('should not show a "Required" label when the connection is optional', () => {
+		const { queryByText } = renderComponent({
+			global: {
+				provide: {
+					...createCanvasProvide(),
+					...createCanvasHandleProvide({ label: 'Memory', isRequired: false }),
+				},
+			},
+		});
+
+		expect(queryByText('Required')).not.toBeInTheDocument();
+	});
 });
