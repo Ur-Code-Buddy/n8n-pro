@@ -78,10 +78,33 @@ pnpm build:docker   # build image only, without starting
 - Enterprise features are enabled via `N8N_LICENSE_UNLOCK_ALL=true` in the generated `docker/.env`.
 - Let's Encrypt enforces rate limits per domain (a handful of certificate issuances per week) — avoid tearing down and recreating the `acme` volume repeatedly for the same domain.
 
+## Deploying a CI-built image (recommended for low-RAM servers)
+
+Building this monorepo (the frontend build in particular) needs several GB of
+headroom — unsuitable for a small production box. Instead, build once via
+GitHub Actions (**Actions → Build and push Docker image → Run workflow**,
+pick this branch), which pushes to a private GHCR package tagged with the
+commit SHA. The production server then only pulls and restarts:
+
+```bash
+# One-time: authenticate to the private GHCR package
+echo "<fine-grained PAT, read:packages only>" | docker login ghcr.io -u <github-username> --password-stdin
+
+# Every deploy:
+scripts/deploy.sh ghcr.io/<owner>/<repo>:<git-sha>
+```
+
+`deploy.sh` sets `N8N_IMAGE` in `docker/.env`, pulls, restarts only the `n8n`
+service (`nginx-proxy`/`acme-companion` and all volumes are untouched), and
+polls `/healthz/readiness` before reporting success. Rollback is the same
+command with a previous commit SHA — no rebuild needed, GHCR keeps old tags.
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | [`docker-compose.yml`](docker-compose.yml) | Detached service definition |
 | [`.env.example`](.env.example) | Documented env vars (generated into `.env` by `docker:up`) |
-| [`../scripts/docker-up.mjs`](../scripts/docker-up.mjs) | Build-if-missing + compose orchestrator |
+| [`../scripts/docker-up.mjs`](../scripts/docker-up.mjs) | Build-if-missing + compose orchestrator (local/dev use) |
+| [`../scripts/deploy.sh`](../scripts/deploy.sh) | Pull + restart a CI-built image (production use) |
+| [`../.github/workflows/docker-build-push.yml`](../.github/workflows/docker-build-push.yml) | Builds the image on GitHub Actions and pushes to GHCR |

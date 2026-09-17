@@ -1,0 +1,54 @@
+name: Build and push Docker image
+
+# Manual trigger only: pick the branch/ref to build from the "Run workflow"
+# button. This builds the n8n Docker image (never on the low-RAM production
+# server) and pushes it to a private GHCR package tagged with the commit SHA.
+# It does not touch runtime config or deploy anything — deployment is a
+# separate manual step run on the production server (see scripts/deploy.sh).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image name (lowercased for Docker)
+        id: image
+        run: |
+          echo "base=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push n8n image
+        env:
+          IMAGE_BASE_NAME: ${{ steps.image.outputs.base }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: pnpm build:docker
+
+      - name: Summary
+        run: |
+          echo "Pushed: ${{ steps.image.outputs.base }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
