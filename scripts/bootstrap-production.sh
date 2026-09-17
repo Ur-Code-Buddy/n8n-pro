@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# One-time bootstrap for a FRESH production server (empty docker/.env, no
-# containers running yet). Creates docker/.env, starts the reverse proxy
-# (nginx-proxy + acme-companion), then pulls and starts a GHCR-built n8n
-# image via deploy.sh.
+# One-time bootstrap for a FRESH production server (empty .env, no
+# containers running yet). Creates .env (repo root), starts the reverse
+# proxy (nginx-proxy + acme-companion), then pulls and starts a GHCR-built
+# n8n image via deploy.sh.
 #
 # This script deliberately never calls `pnpm docker:up` or `pnpm
 # build:docker`, and never invokes `node` or `pnpm` at all — it only writes
@@ -18,15 +18,15 @@
 # the private GHCR package on this machine:
 #   echo "<fine-grained PAT, read:packages only>" | docker login ghcr.io -u <github-username> --password-stdin
 #
-# Safe to run only once per server: refuses to run if docker/.env already
+# Safe to run only once per server: refuses to run if .env already
 # exists, so it can't accidentally reset an existing deployment's config.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/docker/docker-compose.yml"
-ENV_FILE="$ROOT_DIR/docker/.env"
+COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
+ENV_FILE="$ROOT_DIR/.env"
 
 HOST=""
 EMAIL=""

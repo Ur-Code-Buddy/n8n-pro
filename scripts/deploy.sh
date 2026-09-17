@@ -18,8 +18,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_FILE="$ROOT_DIR/docker/docker-compose.yml"
-ENV_FILE="$ROOT_DIR/docker/.env"
+COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
+ENV_FILE="$ROOT_DIR/.env"
 HEALTH_URL="http://localhost:5678/healthz/readiness"
 HEALTH_RETRIES=30
 HEALTH_INTERVAL_SECONDS=2
@@ -35,6 +35,7 @@ IMAGE_REF="$1"
 if [[ ! -f "$ENV_FILE" ]]; then
 	echo "Error: $ENV_FILE not found." >&2
 	echo "This looks like a fresh server. Run scripts/bootstrap-production.sh first (see docker/README.md)." >&2
+	echo "Note: .env now lives at the repo root, not docker/.env." >&2
 	echo "Do NOT run 'pnpm docker:up' or 'pnpm build:docker' here — both build the image locally," >&2
 	echo "which this server does not have the memory for. Images come from GHCR only." >&2
 	exit 1

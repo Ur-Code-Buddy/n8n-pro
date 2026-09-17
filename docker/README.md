@@ -27,7 +27,7 @@ pnpm docker:up https://n8n.yourdomain.com --email you@example.com
 
 What this does:
 
-1. Writes `docker/.env` from your webhook URL (protocol, host, editor URL, fork license/owner defaults)
+1. Writes `.env` (repo root) from your webhook URL (protocol, host, editor URL, fork license/owner defaults)
 2. Builds `n8nio/n8n:local` **only if the image is missing** (first run can take 20–40+ minutes)
 3. Starts n8n, plus `nginx-proxy` + `acme-companion`, **detached**, with restart policy `unless-stopped`
 
@@ -76,7 +76,16 @@ Change this password after first login on any internet-facing deployment.
 ```bash
 pnpm docker:logs    # follow container logs
 pnpm docker:down    # stop container (data volume is kept)
-pnpm build:docker   # build image only, without starting
+pnpm build:docker   # build image only, without starting (local/dev use only)
+```
+
+Since `docker-compose.yml`/`.env` live at the repo root, plain Compose
+commands also work directly from there with no `-f` flag:
+
+```bash
+docker compose up -d      # reads ./.env automatically
+docker compose down
+docker compose logs -f
 ```
 
 ## Production notes
@@ -84,7 +93,7 @@ pnpm build:docker   # build image only, without starting
 - The reverse proxy (`nginx-proxy` + `acme-companion`) and TLS are already handled — no manual nginx config needed. Just make sure ports `80`/`443` are open and DNS resolves before you run `docker:up`.
 - Set `WEBHOOK_URL` to the **public HTTPS URL** users and integrations will call (e.g. `https://n8n.yourdomain.com`).
 - Back up the `n8n_data`, `certs`, and `acme` Docker volumes — `n8n_data` holds workflows/credentials/encryption key, `certs`/`acme` hold your issued Let's Encrypt certificate and account state (losing them just means re-issuing on next boot, not data loss).
-- Enterprise features are enabled via `N8N_LICENSE_UNLOCK_ALL=true` in the generated `docker/.env`.
+- Enterprise features are enabled via `N8N_LICENSE_UNLOCK_ALL=true` in the generated `.env` (repo root).
 - Let's Encrypt enforces rate limits per domain (a handful of certificate issuances per week) — avoid tearing down and recreating the `acme` volume repeatedly for the same domain.
 
 ## Deploying a CI-built image (production)
@@ -112,13 +121,13 @@ scripts/bootstrap-production.sh \
   --image ghcr.io/<owner>/<repo>:<git-sha>
 ```
 
-This writes `docker/.env` directly (same keys `pnpm docker:up` would write,
-plus `N8N_IMAGE`), starts `nginx-proxy` + `acme-companion` (once — needed so
-there's a reverse proxy for the ACME challenge and for TLS), then pulls and
-starts `n8n` via `deploy.sh`. It never calls `pnpm docker:up`, `pnpm
-build:docker`, or any other build command — it only writes a plain-text file
-and runs `docker compose`/`deploy.sh`. It refuses to run if `docker/.env`
-already exists, so it can only ever be used once per server.
+This writes `.env` (repo root) directly (same keys `pnpm docker:up` would
+write, plus `N8N_IMAGE`), starts `nginx-proxy` + `acme-companion` (once —
+needed so there's a reverse proxy for the ACME challenge and for TLS), then
+pulls and starts `n8n` via `deploy.sh`. It never calls `pnpm docker:up`,
+`pnpm build:docker`, or any other build command — it only writes a
+plain-text file and runs `docker compose`/`deploy.sh`. It refuses to run if
+`.env` already exists, so it can only ever be used once per server.
 
 ### Every deploy after that
 
@@ -126,7 +135,7 @@ already exists, so it can only ever be used once per server.
 scripts/deploy.sh ghcr.io/<owner>/<repo>:<git-sha>
 ```
 
-`deploy.sh` sets `N8N_IMAGE` in `docker/.env`, pulls, restarts only the `n8n`
+`deploy.sh` sets `N8N_IMAGE` in `.env` (repo root), pulls, restarts only the `n8n`
 service (`nginx-proxy`/`acme-companion` and all volumes are untouched), and
 polls `/healthz/readiness` before reporting success. Rollback is the same
 command with a previous commit SHA — no rebuild needed, GHCR keeps old tags.
@@ -135,8 +144,8 @@ command with a previous commit SHA — no rebuild needed, GHCR keeps old tags.
 
 | File | Purpose |
 |------|---------|
-| [`docker-compose.yml`](docker-compose.yml) | Detached service definition |
-| [`.env.example`](.env.example) | Documented env vars (generated into `.env` by `docker:up`) |
+| [`../docker-compose.yml`](../docker-compose.yml) | Detached service definition (repo root, so plain `docker compose` commands work with no `-f` flag) |
+| [`../.env.example`](../.env.example) | Documented env vars (generated into repo-root `.env` by `docker:up`/`bootstrap-production.sh`) |
 | [`../scripts/docker-up.mjs`](../scripts/docker-up.mjs) | Build-if-missing + compose orchestrator (local/dev use only — never on production) |
 | [`../scripts/bootstrap-production.sh`](../scripts/bootstrap-production.sh) | First-time production setup: writes `.env`, starts the reverse proxy, deploys via `deploy.sh` — never builds |
 | [`../scripts/deploy.sh`](../scripts/deploy.sh) | Pull + restart a CI-built image (production use, every deploy after the first) |
