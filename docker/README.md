@@ -2,6 +2,15 @@
 
 Run this fork's n8n in Docker with a single command. TLS and reverse-proxying are handled automatically (`nginx-proxy` + `acme-companion`, Let's Encrypt) — you only need the **public webhook URL** (where n8n is reachable from the internet) and a contact email for certificate notices.
 
+> **Production server (low-RAM box): never run `pnpm docker:up` or `pnpm build:docker` here.**
+> Both build the full monorepo locally (the frontend build alone needs several
+> GB of headroom) and have caused multi-hour swap thrashing on a 1GB server.
+> `pnpm docker:up`/`--build` are for **local development only**. On a
+> production server, always use `scripts/bootstrap-production.sh` (first time)
+> and `scripts/deploy.sh` (every deploy after) — see
+> ["Deploying a CI-built image"](#deploying-a-ci-built-image-production) below.
+> The image is always built on GitHub Actions and pulled from GHCR.
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) 24.x
@@ -78,19 +87,42 @@ pnpm build:docker   # build image only, without starting
 - Enterprise features are enabled via `N8N_LICENSE_UNLOCK_ALL=true` in the generated `docker/.env`.
 - Let's Encrypt enforces rate limits per domain (a handful of certificate issuances per week) — avoid tearing down and recreating the `acme` volume repeatedly for the same domain.
 
-## Deploying a CI-built image (recommended for low-RAM servers)
+## Deploying a CI-built image (production)
 
 Building this monorepo (the frontend build in particular) needs several GB of
 headroom — unsuitable for a small production box. Instead, build once via
 GitHub Actions (**Actions → Build and push Docker image → Run workflow**,
 pick this branch), which pushes to a private GHCR package tagged with the
-commit SHA. The production server then only pulls and restarts:
+commit SHA. The production server never builds anything — it only writes
+config, pulls, and restarts.
+
+One-time prerequisite, on the production server: authenticate Docker to the
+private GHCR package:
 
 ```bash
-# One-time: authenticate to the private GHCR package
 echo "<fine-grained PAT, read:packages only>" | docker login ghcr.io -u <github-username> --password-stdin
+```
 
-# Every deploy:
+### First time on a fresh server
+
+```bash
+scripts/bootstrap-production.sh \
+  --host n8n.yourdomain.com \
+  --email you@example.com \
+  --image ghcr.io/<owner>/<repo>:<git-sha>
+```
+
+This writes `docker/.env` directly (same keys `pnpm docker:up` would write,
+plus `N8N_IMAGE`), starts `nginx-proxy` + `acme-companion` (once — needed so
+there's a reverse proxy for the ACME challenge and for TLS), then pulls and
+starts `n8n` via `deploy.sh`. It never calls `pnpm docker:up`, `pnpm
+build:docker`, or any other build command — it only writes a plain-text file
+and runs `docker compose`/`deploy.sh`. It refuses to run if `docker/.env`
+already exists, so it can only ever be used once per server.
+
+### Every deploy after that
+
+```bash
 scripts/deploy.sh ghcr.io/<owner>/<repo>:<git-sha>
 ```
 
@@ -105,6 +137,7 @@ command with a previous commit SHA — no rebuild needed, GHCR keeps old tags.
 |------|---------|
 | [`docker-compose.yml`](docker-compose.yml) | Detached service definition |
 | [`.env.example`](.env.example) | Documented env vars (generated into `.env` by `docker:up`) |
-| [`../scripts/docker-up.mjs`](../scripts/docker-up.mjs) | Build-if-missing + compose orchestrator (local/dev use) |
-| [`../scripts/deploy.sh`](../scripts/deploy.sh) | Pull + restart a CI-built image (production use) |
+| [`../scripts/docker-up.mjs`](../scripts/docker-up.mjs) | Build-if-missing + compose orchestrator (local/dev use only — never on production) |
+| [`../scripts/bootstrap-production.sh`](../scripts/bootstrap-production.sh) | First-time production setup: writes `.env`, starts the reverse proxy, deploys via `deploy.sh` — never builds |
+| [`../scripts/deploy.sh`](../scripts/deploy.sh) | Pull + restart a CI-built image (production use, every deploy after the first) |
 | [`../.github/workflows/docker-build-push.yml`](../.github/workflows/docker-build-push.yml) | Builds the image on GitHub Actions and pushes to GHCR |

@@ -33,7 +33,10 @@ fi
 IMAGE_REF="$1"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-	echo "Error: $ENV_FILE not found. Run 'pnpm docker:up <url> --email <email>' once first to generate it." >&2
+	echo "Error: $ENV_FILE not found." >&2
+	echo "This looks like a fresh server. Run scripts/bootstrap-production.sh first (see docker/README.md)." >&2
+	echo "Do NOT run 'pnpm docker:up' or 'pnpm build:docker' here — both build the image locally," >&2
+	echo "which this server does not have the memory for. Images come from GHCR only." >&2
 	exit 1
 fi
 
