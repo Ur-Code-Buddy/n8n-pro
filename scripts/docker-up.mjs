@@ -19,9 +19,8 @@ process.env.FORCE_COLOR = '1';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.join(__dirname, '..');
-const dockerDir = path.join(rootDir, 'docker');
-const composeFile = path.join(dockerDir, 'docker-compose.yml');
-const envFile = path.join(dockerDir, '.env');
+const composeFile = path.join(rootDir, 'docker-compose.yml');
+const envFile = path.join(rootDir, '.env');
 const imageName = 'n8nio/n8n:local';
 
 const FORK_DEFAULTS = {

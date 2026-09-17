@@ -18,7 +18,7 @@ pnpm docker:up https://n8n.yourdomain.com --email you@example.com
 
 What this does:
 
-1. Writes `docker/.env` from your webhook URL (protocol, host, editor URL, fork license/owner defaults)
+1. Writes `.env` (repo root) from your webhook URL (protocol, host, editor URL, fork license/owner defaults)
 2. Builds `n8nio/n8n:local` **only if the image is missing** (first run can take 20–40+ minutes)
 3. Starts n8n, plus `nginx-proxy` + `acme-companion`, **detached**, with restart policy `unless-stopped`
 
@@ -70,18 +70,28 @@ pnpm docker:down    # stop container (data volume is kept)
 pnpm build:docker   # build image only, without starting
 ```
 
+Once the image is built and `.env` exists at the repo root (both handled by
+`docker:up` on first run), you can skip the wrapper entirely and use plain
+Compose directly from the repository root:
+
+```bash
+docker compose up -d      # start (reads ./.env automatically)
+docker compose down       # stop
+docker compose logs -f    # follow logs
+```
+
 ## Production notes
 
 - The reverse proxy (`nginx-proxy` + `acme-companion`) and TLS are already handled — no manual nginx config needed. Just make sure ports `80`/`443` are open and DNS resolves before you run `docker:up`.
 - Set `WEBHOOK_URL` to the **public HTTPS URL** users and integrations will call (e.g. `https://n8n.yourdomain.com`).
 - Back up the `n8n_data`, `certs`, and `acme` Docker volumes — `n8n_data` holds workflows/credentials/encryption key, `certs`/`acme` hold your issued Let's Encrypt certificate and account state (losing them just means re-issuing on next boot, not data loss).
-- Enterprise features are enabled via `N8N_LICENSE_UNLOCK_ALL=true` in the generated `docker/.env`.
+- Enterprise features are enabled via `N8N_LICENSE_UNLOCK_ALL=true` in the generated `.env` (repo root).
 - Let's Encrypt enforces rate limits per domain (a handful of certificate issuances per week) — avoid tearing down and recreating the `acme` volume repeatedly for the same domain.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| [`docker-compose.yml`](docker-compose.yml) | Detached service definition |
-| [`.env.example`](.env.example) | Documented env vars (generated into `.env` by `docker:up`) |
+| [`../docker-compose.yml`](../docker-compose.yml) | Detached service definition (repo root, so plain `docker compose` commands work with no `-f` flag) |
+| [`../.env.example`](../.env.example) | Documented env vars (generated into repo-root `.env` by `docker:up`) |
 | [`../scripts/docker-up.mjs`](../scripts/docker-up.mjs) | Build-if-missing + compose orchestrator |
