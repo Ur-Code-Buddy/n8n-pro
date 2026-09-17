@@ -43,6 +43,9 @@ jobs:
         run: |
           echo "base=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Build and push n8n image
         env:
           IMAGE_BASE_NAME: ${{ steps.image.outputs.base }}
